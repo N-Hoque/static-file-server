@@ -1,7 +1,8 @@
 # static-file-server
 
 <a href="https://github.com/sponsors/halverneus">
-<img src="img/sponsor.svg" />
+    <p>Forked from halverneus. Send your support to him below!</p>
+    <img src="img/sponsor.svg" />
 </a>
 
 ## Introduction

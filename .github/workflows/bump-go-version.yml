@@ -1,4 +1,4 @@
-name: Bump Go Version (go.mod + Dockerfiles)
+name: Bump Go Version (stable)
 
 on:
   workflow_dispatch:
@@ -10,107 +10,76 @@ permissions:
   pull-requests: write
 
 jobs:
-  bump:
+  bump-go:
     runs-on: ubuntu-latest
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Determine latest Go
-        id: latest
-        run: |
-          set -euo pipefail
-          v=$(curl -fsSL https://go.dev/VERSION?m=text | head -n1)   # e.g. go1.23.1
-          echo "full=$v" >> "$GITHUB_OUTPUT"
-          echo "short=${v#go}" >> "$GITHUB_OUTPUT"                   # 1.23.1
-
-      - name: Read current go directive
-        id: current
-        run: |
-          set -euo pipefail
-          cur=$(grep -E '^go [0-9]+\.[0-9]+' go.mod | awk '{print $2}')
-          echo "short=$cur" >> "$GITHUB_OUTPUT"                      # 1.22
-
-      - name: Show versions
-        run: |
-          echo "Current go.mod: ${{ steps.current.outputs.short }}"
-          echo "Latest stable:  ${{ steps.latest.outputs.short }}"
-
-      - name: Skip if already up to date
-        if: steps.current.outputs.short == steps.latest.outputs.short
-        run: echo "Go directive already up to date."
-
-      - name: Update go.mod go directive
-        if: steps.current.outputs.short != steps.latest.outputs.short
-        run: |
-          set -euo pipefail
-          sed -i -E "s/^go [0-9]+\.[0-9]+/go ${{ steps.latest.outputs.short }}/" go.mod
-
-      - name: Update Dockerfiles (golang base image tags)
-        if: steps.current.outputs.short != steps.latest.outputs.short
-        run: |
-          set -euo pipefail
-          for f in Dockerfile Dockerfile.*; do
-            [ -f "$f" ] || continue
-            sed -i -E "s/golang:[0-9]+\.[0-9]+(\.[0-9]+)?/golang:${{ steps.latest.outputs.short }}/" "$f" || true
-          done
-
-      - name: "Optional: update .tool-versions / devcontainer"
-        if: steps.current.outputs.short != steps.latest.outputs.short
-        run: |
-          set -euo pipefail
-          if [ -f .tool-versions ]; then
-            sed -i -E "s/^golang [0-9]+\.[0-9]+(\.[0-9]+)?/golang ${{ steps.latest.outputs.short }}/" .tool-versions || true
-          fi
-          if [ -f .devcontainer/devcontainer.json ]; then
-            sed -i -E "s/golang:[0-9]+\.[0-9]+(\.[0-9]+)?/golang:${{ steps.latest.outputs.short }}/" .devcontainer/devcontainer.json || true
-          fi
-
-      - name: Setup Go (latest)
-        if: steps.current.outputs.short != steps.latest.outputs.short
+      # 1) Install latest STABLE Go on the runner
+      - name: Setup Go (stable)
+        id: setup
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.latest.outputs.full }}
+          go-version: stable
           check-latest: true
 
-      - name: Tidy
-        if: steps.current.outputs.short != steps.latest.outputs.short
-        run: go mod tidy -compat=${{ steps.latest.outputs.short }}
-
-      - name: Build & Test
-        if: steps.current.outputs.short != steps.latest.outputs.short
-        id: build
-        continue-on-error: true
+      # 2) Read installed Go version (from runner)
+      - name: Determine installed Go version
+        id: ver
+        shell: bash
         run: |
-          set -o pipefail
-          {
-            echo "=== go env ==="; go env
-            echo; echo "=== vet ==="; go vet ./...
-            echo; echo "=== build ==="; go build ./...
-            echo; echo "=== test ==="; go test -race -count=1 ./...
-          } 2>&1 | tee bump.log
+          set -euo pipefail
+          gv=$(go version | awk '{print $3}')   # e.g. go1.25.4
+          full="${gv#go}"                       # 1.25.4
+          minor="$(echo "$full" | cut -d. -f1-2)"  # 1.25
+          echo "full=$full"   >> "$GITHUB_OUTPUT"
+          echo "minor=$minor" >> "$GITHUB_OUTPUT"
+          echo "$full | $minor"
 
-      - name: Create PR (draft)
-        if: steps.current.outputs.short != steps.latest.outputs.short
+      # 3) Modify go.mod to use that version of Go
+      - name: Read current go.mod 'go' directive
+        id: cur
+        shell: bash
+        run: |
+          set -euo pipefail
+          cur=$(grep -E '^go [0-9]+\.[0-9]+' go.mod | awk '{print $2}' || true)
+          full="$cur"
+          minor="${cur:-}"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "minor=$minor" >> "$GITHUB_OUTPUT"
+          echo "$full | $minor"
+
+      - name: Update go.mod 'go' directive (if needed)
+        if: steps.cur.outputs.full != steps.ver.outputs.full
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Force go.mod file to include full Go version
+          sed -i -E "s/^go\s.*/go ${{steps.ver.outputs.full}}/" go.mod
+          # Remove any explicit toolchain line to avoid auto-download mismatch
+          sed -i -E '/^toolchain go[0-9]+\.[0-9]+(\.[0-9]+)?/d' go.mod
+
+      # 4) Run `go mod tidy` (no -compat needed)
+      - name: Tidy
+        if: steps.cur.outputs.full != steps.ver.outputs.full
+        shell: bash
+        run: go mod tidy
+
+      # 5) Create a PR only if versions differ / changes exist
+      - name: Create PR
+        if: steps.cur.outputs.full != steps.ver.outputs.full
         uses: peter-evans/create-pull-request@v7
         with:
-          branch: chore/bump-go-${{ steps.latest.outputs.short }}
-          title: "chore: bump Go to ${{ steps.latest.outputs.full }}"
+          branch: chore/bump-go-stable-${{ steps.ver.outputs.full }}
+          title: "chore: bump Go to stable ${{ steps.ver.outputs.full }}"
           draft: true
-          commit-message: "chore: bump Go to ${{ steps.latest.outputs.full }}"
+          commit-message: "chore: bump Go to stable ${{ steps.ver.outputs.full }}"
           body: |
-            This PR bumps the `go` directive in `go.mod` to **${{ steps.latest.outputs.full }}** and updates any `golang:` base images.
-            
-            Build/test logs:
-            ```
-            ${{ steps.build.outputs }} 
-            ```
+            Align `go.mod` with the latest **stable** Go toolchain detected on the runner.
+
+            - `go.mod go` → `${{ steps.ver.outputs.full }}`
+            - Removed any `toolchain goX.Y[.Z]` line to avoid auto-download mismatches
           add-paths: |
             go.mod
             go.sum
-            Dockerfile*
-            .tool-versions
-            .devcontainer/devcontainer.json
-

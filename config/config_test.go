@@ -110,9 +110,9 @@ func TestLoad(t *testing.T) {
 }
 
 func TestLog(t *testing.T) {
-	// Test whether YAML marshalling works, as that is the only error case.
+	// Test whether YAML marshaling works, as that is the only error case.
 	if _, err := yaml.Marshal(&Get); nil != err {
-		t.Errorf("While testing YAML marshalling for config Log() got %v", err)
+		t.Errorf("While testing YAML marshaling for config Log() got %v", err)
 	}
 	Log()
 }

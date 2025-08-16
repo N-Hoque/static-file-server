@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -12,6 +11,41 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 )
+
+type EnvMapper interface {
+	GetEnv(key string) string
+	SetEnv(key, value string) error
+}
+
+type RealEnvMapper map[string]string
+
+func NewRealEnvMapper() EnvMapper {
+	m := make(RealEnvMapper)
+	// Populate the map with the current environment variables.
+	for _, env := range os.Environ() {
+		parts := strings.SplitN(env, "=", 2)
+		if len(parts) == 2 {
+			m[parts[0]] = parts[1]
+		}
+	}
+	return m
+}
+
+func (m RealEnvMapper) GetEnv(key string) string {
+	value, exists := m[key]
+	if !exists {
+		return ""
+	}
+	return value
+}
+func (m RealEnvMapper) SetEnv(key, value string) error {
+	if value == "" {
+		delete(m, key)
+	} else {
+		m[key] = value
+	}
+	return nil
+}
 
 var (
 	// Get the desired configuration value.
@@ -87,16 +121,16 @@ func setDefaults() {
 }
 
 // Load the configuration file.
-func Load(filename string) (err error) {
+func Load(filename string, envMapper EnvMapper) (err error) {
 	// If no filename provided, assign envvars.
 	if filename == "" {
-		overrideWithEnvVars()
+		overrideWithEnvVars(envMapper)
 		return validate()
 	}
 
 	// Read contents from configuration file.
 	var contents []byte
-	if contents, err = ioutil.ReadFile(filename); nil != err {
+	if contents, err = os.ReadFile(filename); nil != err {
 		return
 	}
 
@@ -105,7 +139,7 @@ func Load(filename string) (err error) {
 		return
 	}
 
-	overrideWithEnvVars()
+	overrideWithEnvVars(envMapper)
 	return validate()
 }
 
@@ -121,21 +155,21 @@ func Log() {
 }
 
 // overrideWithEnvVars the default values and the configuration file values.
-func overrideWithEnvVars() {
+func overrideWithEnvVars(envMapper EnvMapper) {
 	// Assign envvars, if set.
-	Get.Cors = envAsBool(corsKey, Get.Cors)
-	Get.Debug = envAsBool(debugKey, Get.Debug)
-	Get.Folder = envAsStr(folderKey, Get.Folder)
-	Get.Host = envAsStr(hostKey, Get.Host)
-	Get.Port = envAsUint16(portKey, Get.Port)
-	Get.AllowIndex = envAsBool(allowIndexKey, Get.AllowIndex)
-	Get.ShowListing = envAsBool(showListingKey, Get.ShowListing)
-	Get.TLSCert = envAsStr(tlsCertKey, Get.TLSCert)
-	Get.TLSKey = envAsStr(tlsKeyKey, Get.TLSKey)
-	Get.TLSMinVersStr = envAsStr(tlsMinVersKey, Get.TLSMinVersStr)
-	Get.URLPrefix = envAsStr(urlPrefixKey, Get.URLPrefix)
-	Get.Referrers = envAsStrSlice(referrersKey, Get.Referrers)
-	Get.AccessKey = envAsStr(accessKeyKey, Get.AccessKey)
+	Get.Cors = envAsBool(envMapper, corsKey, Get.Cors)
+	Get.Debug = envAsBool(envMapper, debugKey, Get.Debug)
+	Get.Folder = envAsStr(envMapper, folderKey, Get.Folder)
+	Get.Host = envAsStr(envMapper, hostKey, Get.Host)
+	Get.Port = envAsUint16(envMapper, portKey, Get.Port)
+	Get.AllowIndex = envAsBool(envMapper, allowIndexKey, Get.AllowIndex)
+	Get.ShowListing = envAsBool(envMapper, showListingKey, Get.ShowListing)
+	Get.TLSCert = envAsStr(envMapper, tlsCertKey, Get.TLSCert)
+	Get.TLSKey = envAsStr(envMapper, tlsKeyKey, Get.TLSKey)
+	Get.TLSMinVersStr = envAsStr(envMapper, tlsMinVersKey, Get.TLSMinVersStr)
+	Get.URLPrefix = envAsStr(envMapper, urlPrefixKey, Get.URLPrefix)
+	Get.Referrers = envAsStrSlice(envMapper, referrersKey, Get.Referrers)
+	Get.AccessKey = envAsStr(envMapper, accessKeyKey, Get.AccessKey)
 }
 
 // validate the configuration.
@@ -204,8 +238,8 @@ func validate() error {
 }
 
 // envAsStr returns the value of the environment variable as a string if set.
-func envAsStr(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
+func envAsStr(envMapper EnvMapper, key, fallback string) string {
+	if value := envMapper.GetEnv(key); value != "" {
 		return value
 	}
 	return fallback
@@ -213,18 +247,18 @@ func envAsStr(key, fallback string) string {
 
 // envAsStrSlice returns the value of the environment variable as a slice of
 // strings if set.
-func envAsStrSlice(key string, fallback []string) []string {
-	if value := os.Getenv(key); value != "" {
+func envAsStrSlice(envMapper EnvMapper, key string, fallback []string) []string {
+	if value := envMapper.GetEnv(key); value != "" {
 		return strings.Split(value, ",")
 	}
 	return fallback
 }
 
 // envAsUint16 returns the value of the environment variable as a uint16 if set.
-func envAsUint16(key string, fallback uint16) uint16 {
+func envAsUint16(envMapper EnvMapper, key string, fallback uint16) uint16 {
 	// Retrieve the string value of the environment variable. If not set,
 	// fallback is used.
-	valueStr := os.Getenv(key)
+	valueStr := envMapper.GetEnv(key)
 	if valueStr == "" {
 		return fallback
 	}
@@ -245,10 +279,10 @@ func envAsUint16(key string, fallback uint16) uint16 {
 
 // envAsBool returns the value for an environment variable or, if not set, a
 // fallback value as a boolean.
-func envAsBool(key string, fallback bool) bool {
+func envAsBool(envMapper EnvMapper, key string, fallback bool) bool {
 	// Retrieve the string value of the environment variable. If not set,
 	// fallback is used.
-	valueStr := os.Getenv(key)
+	valueStr := envMapper.GetEnv(key)
 	if valueStr == "" {
 		return fallback
 	}

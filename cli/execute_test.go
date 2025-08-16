@@ -5,6 +5,8 @@ import (
 	"flag"
 	"os"
 	"testing"
+
+	"github.com/halverneus/static-file-server/config"
 )
 
 func TestSetupFlags(t *testing.T) {
@@ -128,7 +130,7 @@ func TestExecuteAndSelection(t *testing.T) {
 
 func TestUnknownArgs(t *testing.T) {
 	errFunc := unknownArgs(Args{"unknown"})
-	if err := errFunc(); nil == err {
+	if err := errFunc(); err == nil {
 		t.Errorf(
 			"Expected a given unknown argument error but got %v",
 			err,
@@ -143,11 +145,11 @@ func TestWithConfig(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		loadConfig func(string) error
+		loadConfig func(string, config.EnvMapper) error
 		result     error
 	}{
-		{"Config error", func(string) error { return configError }, configError},
-		{"Routine error", func(string) error { return nil }, routineError},
+		{"Config error", func(string, config.EnvMapper) error { return configError }, configError},
+		{"Routine error", func(string, config.EnvMapper) error { return nil }, routineError},
 	}
 
 	for _, tc := range testCases {

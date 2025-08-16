@@ -1,0 +1,73 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: ["master-nhoque"]
+
+jobs:
+  lint:
+    name: Lint (golangci-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest # or 'latest' to always use newest
+          args: --timeout=5m
+
+  test:
+    name: Test (unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+      - name: Run tests
+        run: go test -race -count=1 ./...
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: windows
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+          cache: true
+      - name: Compile
+        env:
+          APP: static-file-server
+          CGO_ENABLED: 0
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        shell: bash
+        run: |
+          EXT=""
+          [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
+          mkdir -p dist
+          go build -trimpath -o "dist/${APP}_${{ matrix.goos }}_${{ matrix.goarch }}${EXT}" ./bin/serve
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*

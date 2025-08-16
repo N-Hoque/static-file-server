@@ -3,7 +3,7 @@
 ################################################################################
 FROM golang:1.22.4 as builder
 
-ENV VERSION 1.8.11
+ENV VERSION 1.8.12
 ENV CGO_ENABLED 0
 ENV BUILD_DIR /build
 

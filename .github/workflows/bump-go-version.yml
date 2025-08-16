@@ -1,0 +1,116 @@
+name: Bump Go Version (go.mod + Dockerfiles)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'  # Mondays 06:00 UTC
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine latest Go
+        id: latest
+        run: |
+          set -euo pipefail
+          v=$(curl -fsSL https://go.dev/VERSION?m=text | head -n1)   # e.g. go1.23.1
+          echo "full=$v" >> "$GITHUB_OUTPUT"
+          echo "short=${v#go}" >> "$GITHUB_OUTPUT"                   # 1.23.1
+
+      - name: Read current go directive
+        id: current
+        run: |
+          set -euo pipefail
+          cur=$(grep -E '^go [0-9]+\.[0-9]+' go.mod | awk '{print $2}')
+          echo "short=$cur" >> "$GITHUB_OUTPUT"                      # 1.22
+
+      - name: Show versions
+        run: |
+          echo "Current go.mod: ${{ steps.current.outputs.short }}"
+          echo "Latest stable:  ${{ steps.latest.outputs.short }}"
+
+      - name: Skip if already up to date
+        if: steps.current.outputs.short == steps.latest.outputs.short
+        run: echo "Go directive already up to date."
+
+      - name: Update go.mod go directive
+        if: steps.current.outputs.short != steps.latest.outputs.short
+        run: |
+          set -euo pipefail
+          sed -i -E "s/^go [0-9]+\.[0-9]+/go ${{ steps.latest.outputs.short }}/" go.mod
+
+      - name: Update Dockerfiles (golang base image tags)
+        if: steps.current.outputs.short != steps.latest.outputs.short
+        run: |
+          set -euo pipefail
+          for f in Dockerfile Dockerfile.*; do
+            [ -f "$f" ] || continue
+            sed -i -E "s/golang:[0-9]+\.[0-9]+(\.[0-9]+)?/golang:${{ steps.latest.outputs.short }}/" "$f" || true
+          done
+
+      - name: "Optional: update .tool-versions / devcontainer"
+        if: steps.current.outputs.short != steps.latest.outputs.short
+        run: |
+          set -euo pipefail
+          if [ -f .tool-versions ]; then
+            sed -i -E "s/^golang [0-9]+\.[0-9]+(\.[0-9]+)?/golang ${{ steps.latest.outputs.short }}/" .tool-versions || true
+          fi
+          if [ -f .devcontainer/devcontainer.json ]; then
+            sed -i -E "s/golang:[0-9]+\.[0-9]+(\.[0-9]+)?/golang:${{ steps.latest.outputs.short }}/" .devcontainer/devcontainer.json || true
+          fi
+
+      - name: Setup Go (latest)
+        if: steps.current.outputs.short != steps.latest.outputs.short
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.latest.outputs.full }}
+          check-latest: true
+
+      - name: Tidy
+        if: steps.current.outputs.short != steps.latest.outputs.short
+        run: go mod tidy -compat=${{ steps.latest.outputs.short }}
+
+      - name: Build & Test
+        if: steps.current.outputs.short != steps.latest.outputs.short
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            echo "=== go env ==="; go env
+            echo; echo "=== vet ==="; go vet ./...
+            echo; echo "=== build ==="; go build ./...
+            echo; echo "=== test ==="; go test -race -count=1 ./...
+          } 2>&1 | tee bump.log
+
+      - name: Create PR (draft)
+        if: steps.current.outputs.short != steps.latest.outputs.short
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/bump-go-${{ steps.latest.outputs.short }}
+          title: "chore: bump Go to ${{ steps.latest.outputs.full }}"
+          draft: true
+          commit-message: "chore: bump Go to ${{ steps.latest.outputs.full }}"
+          body: |
+            This PR bumps the `go` directive in `go.mod` to **${{ steps.latest.outputs.full }}** and updates any `golang:` base images.
+            
+            Build/test logs:
+            ```
+            ${{ steps.build.outputs }} 
+            ```
+          add-paths: |
+            go.mod
+            go.sum
+            Dockerfile*
+            .tool-versions
+            .devcontainer/devcontainer.json
+

@@ -38,18 +38,12 @@ jobs:
           echo "Current go.mod: ${{ steps.current.outputs.short }}"
           echo "Latest stable:  ${{ steps.latest.outputs.short }}"
 
-      - name: Skip if already up to date
-        if: steps.current.outputs.short == steps.latest.outputs.short
-        run: echo "Go directive already up to date."
-
       - name: Update go.mod go directive
-        if: steps.current.outputs.short != steps.latest.outputs.short
         run: |
           set -euo pipefail
           sed -i -E "s/^go [0-9]+\.[0-9]+/go ${{ steps.latest.outputs.short }}/" go.mod
 
       - name: Update .tool-versions / devcontainer
-        if: steps.current.outputs.short != steps.latest.outputs.short
         run: |
           set -euo pipefail
           if [ -f .tool-versions ]; then
@@ -60,17 +54,14 @@ jobs:
           fi
 
       - name: Setup Go (latest)
-        if: steps.current.outputs.short != steps.latest.outputs.short
         uses: actions/setup-go@v5
         with:
           check-latest: true
 
       - name: Tidy
-        if: steps.current.outputs.short != steps.latest.outputs.short
         run: go mod tidy -compat=${{ steps.latest.outputs.short }}
 
       - name: Build & Test
-        if: steps.current.outputs.short != steps.latest.outputs.short
         id: build
         continue-on-error: true
         run: |

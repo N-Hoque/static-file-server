@@ -94,7 +94,7 @@ jobs:
 
       - name: Create PR (draft)
         if: steps.current.outputs.short != steps.latest.outputs.short
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           branch: chore/bump-go-${{ steps.latest.outputs.short }}
           title: "chore: bump Go to ${{ steps.latest.outputs.full }}"

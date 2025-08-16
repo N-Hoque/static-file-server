@@ -40,14 +40,14 @@ func handlerSelector() (handler http.HandlerFunc) {
 		serveFileHandler = handle.WithLogging(serveFileHandler)
 	}
 
-	if 0 != len(config.Get.Referrers) {
+	if len(config.Get.Referrers) > 0 {
 		serveFileHandler = handle.WithReferrers(
 			serveFileHandler, config.Get.Referrers,
 		)
 	}
 
 	// Choose and set the appropriate, optimized static file serving function.
-	if 0 == len(config.Get.URLPrefix) {
+	if len(config.Get.URLPrefix) == 0 {
 		handler = handle.Basic(serveFileHandler, config.Get.Folder)
 	} else {
 		handler = handle.Prefix(
@@ -83,7 +83,7 @@ func handlerSelector() (handler http.HandlerFunc) {
 func listenerSelector() (listener handle.ListenerFunc) {
 	// Serve files over HTTP or HTTPS based on paths to TLS files being
 	// provided.
-	if 0 < len(config.Get.TLSCert) {
+	if len(config.Get.TLSCert) > 0 {
 		handle.SetMinimumTLSVersion(config.Get.TLSMinVers)
 		listener = handle.TLSListening(
 			config.Get.TLSCert,

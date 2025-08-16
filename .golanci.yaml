@@ -47,6 +47,10 @@ issues:
   max-issues-per-linter: 0
   max-same-issues: 0
   exclude-rules:
+    # Ignore defer error checks
+    - linters:
+        - errcheck
+      source: "^\\s*defer\\s+"
     # Relax errcheck in tests (handy for quick assertions/output)
     - path: _test\.go
       linters: [errcheck]

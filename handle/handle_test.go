@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -17,16 +17,16 @@ import (
 var (
 	baseDir             = "tmp/"
 	subDir              = "sub/"
-	subDeepDir          = "sub/deep/"
+	subDeepDir          = "sub/deep/" //nolint:unused
 	tmpIndexName        = "index.html"
 	tmpFileName         = "file.txt"
 	tmpBadName          = "bad.txt"
 	tmpSubIndexName     = "sub/index.html"
 	tmpSubFileName      = "sub/file.txt"
-	tmpSubBadName       = "sub/bad.txt"
+	tmpSubBadName       = "sub/bad.txt" //nolint:unused
 	tmpSubDeepIndexName = "sub/deep/index.html"
 	tmpSubDeepFileName  = "sub/deep/file.txt"
-	tmpSubDeepBadName   = "sub/deep/bad.txt"
+	tmpSubDeepBadName   = "sub/deep/bad.txt" //nolint:unused
 	tmpNoIndexDir       = "noindex/"
 	tmpNoIndexName      = "noindex/noindex.txt"
 
@@ -75,7 +75,7 @@ func setup() (err error) {
 		if err = os.MkdirAll(path.Dir(filename), 0700); nil != err {
 			return
 		}
-		if err = ioutil.WriteFile(
+		if err = os.WriteFile(
 			filename,
 			[]byte(contents),
 			0600,
@@ -165,7 +165,7 @@ func TestWithReferrers(t *testing.T) {
 			handler(w, req, "")
 
 			resp := w.Result()
-			_, err := ioutil.ReadAll(resp.Body)
+			_, err := io.ReadAll(resp.Body)
 			if nil != err {
 				t.Errorf("While reading body got %v", err)
 			}
@@ -217,7 +217,7 @@ func TestBasicWithAndWithoutLogging(t *testing.T) {
 				handler(w, req)
 
 				resp := w.Result()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				if nil != err {
 					t.Errorf("While reading body got %v", err)
 				}
@@ -269,7 +269,7 @@ func TestPrefix(t *testing.T) {
 				handler(w, req)
 
 				resp := w.Result()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				if nil != err {
 					t.Errorf("While reading body got %v", err)
 				}
@@ -318,7 +318,7 @@ func TestIgnoreIndex(t *testing.T) {
 				handler(w, req)
 
 				resp := w.Result()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				if nil != err {
 					t.Errorf("While reading body got %v", err)
 				}
@@ -368,7 +368,7 @@ func TestPreventListings(t *testing.T) {
 				handler(w, req)
 
 				resp := w.Result()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				if nil != err {
 					t.Errorf("While reading body got %v", err)
 				}
@@ -460,7 +460,7 @@ func TestAddAccessKey(t *testing.T) {
 				handler(w, req)
 
 				resp := w.Result()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				if nil != err {
 					t.Errorf("While reading body got %v", err)
 				}
@@ -498,7 +498,7 @@ func TestListening(t *testing.T) {
 	// Override listenAndServe with a function with more introspection and
 	// control than 'http.ListenAndServe'.
 	listenAndServe = func(
-		binding string, handler http.Handler,
+		binding string, _ http.Handler,
 	) error {
 		if testBinding != binding {
 			t.Errorf(
@@ -543,7 +543,7 @@ func TestTLSListening(t *testing.T) {
 	// Override listenAndServeTLS with a function with more introspection and
 	// control than 'http.ListenAndServeTLS'.
 	listenAndServeTLS = func(
-		binding, tlsCert, tlsKey string, handler http.Handler,
+		binding, tlsCert, tlsKey string, _ http.Handler,
 	) error {
 		if testBinding != binding {
 			t.Errorf(
@@ -660,7 +660,7 @@ func TestAddCorsWildcardHeaders(t *testing.T) {
 				handler(w, req)
 
 				resp := w.Result()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				if nil != err {
 					t.Errorf("While reading body got %v", err)
 				}

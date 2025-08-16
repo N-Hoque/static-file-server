@@ -19,7 +19,7 @@ func (args Args) Matches(pattern ...string) bool {
 
 	// Compare slices using '*' as a wildcard.
 	for index, value := range pattern {
-		if "*" != value && value != args[index] {
+		if value != "*" && value != args[index] {
 			return false
 		}
 	}

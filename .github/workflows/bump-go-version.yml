@@ -55,11 +55,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if grep -qE '^go [0-9]+\.[0-9]+' go.mod; then
-            sed -i -E "s/^go [0-9]+\.[0-9]+/go ${{ steps.ver.outputs.full }}/" go.mod
-          else
-            printf "go %s\n\n%s" "${{ steps.ver.outputs.full }}" "$(cat go.mod)" > go.mod
-          fi
+          # Force go.mod file to include full Go version
+          sed -i -E "s/^go\s.*/go ${{steps.ver.outputs.full}}/" go.mod
           # Remove any explicit toolchain line to avoid auto-download mismatch
           sed -i -E '/^toolchain go[0-9]+\.[0-9]+(\.[0-9]+)?/d' go.mod
 

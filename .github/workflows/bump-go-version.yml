@@ -35,6 +35,7 @@ jobs:
           minor="$(echo "$full" | cut -d. -f1-2)"  # 1.25
           echo "full=$full"   >> "$GITHUB_OUTPUT"
           echo "minor=$minor" >> "$GITHUB_OUTPUT"
+          echo "$full | $minor"
 
       # 3) Modify go.mod to use that version of Go
       - name: Read current go.mod 'go' directive
@@ -43,7 +44,11 @@ jobs:
         run: |
           set -euo pipefail
           cur=$(grep -E '^go [0-9]+\.[0-9]+' go.mod | awk '{print $2}' || true)
-          echo "minor=${cur:-}" >> "$GITHUB_OUTPUT"
+          full="$cur"
+          minor="${cur:-}"
+          echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "minor=$minor" >> "$GITHUB_OUTPUT"
+          echo "$full | $minor"
 
       - name: Update go.mod 'go' directive (if needed)
         if: steps.cur.outputs.full != steps.ver.outputs.full

@@ -1,0 +1,67 @@
+run:
+  timeout: 3m
+  tests: true
+  concurrency: 0
+
+# Keep output readable in CI logs
+output:
+  formats:
+    - format: colored-line-number
+
+# Don’t pull extra modules during lint; use what's in go.mod/go.sum
+modules-download-mode: readonly
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - gosimple
+    - typecheck
+    - ineffassign
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - errcheck
+
+linters-settings:
+  gofmt:
+    simplify: true
+  goimports:
+    # Set your module path here for proper grouping
+    local-prefixes: github.com/halverneus/static-file-server
+  misspell:
+    locale: US
+  errcheck:
+    # Common write/print paths you usually don't care to check
+    exclude-functions:
+      - (io.Writer).Write
+      - (*bytes.Buffer).WriteString
+      - fmt.Fprint
+      - fmt.Fprintf
+      - fmt.Fprintln
+      - (*net/http.Response).Body.Close
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    # Ignore defer error checks
+    - linters:
+        - errcheck
+      source: "^\\s*defer\\s+"
+    # Relax errcheck in tests (handy for quick assertions/output)
+    - path: _test\.go
+      linters: [errcheck]
+    # Ignore formatting/errcheck on generated files
+    - path: .*_generated\.go
+      linters: [gofmt, goimports, errcheck]
+
+# Skip noisy/irrelevant directories
+skip-dirs:
+  - vendor
+  - dist
+  - .git
+  - .github
+

@@ -48,16 +48,7 @@ jobs:
           set -euo pipefail
           sed -i -E "s/^go [0-9]+\.[0-9]+/go ${{ steps.latest.outputs.short }}/" go.mod
 
-      - name: Update Dockerfiles (golang base image tags)
-        if: steps.current.outputs.short != steps.latest.outputs.short
-        run: |
-          set -euo pipefail
-          for f in Dockerfile Dockerfile.*; do
-            [ -f "$f" ] || continue
-            sed -i -E "s/golang:[0-9]+\.[0-9]+(\.[0-9]+)?/golang:${{ steps.latest.outputs.short }}/" "$f" || true
-          done
-
-      - name: "Optional: update .tool-versions / devcontainer"
+      - name: Update .tool-versions / devcontainer
         if: steps.current.outputs.short != steps.latest.outputs.short
         run: |
           set -euo pipefail
@@ -72,7 +63,6 @@ jobs:
         if: steps.current.outputs.short != steps.latest.outputs.short
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ steps.latest.outputs.full }}
           check-latest: true
 
       - name: Tidy

@@ -3,9 +3,9 @@
 ################################################################################
 FROM golang:1.24.13 AS builder
 
-ENV VERSION=1.8.12
-ENV CGO_ENABLED=0
-ENV BUILD_DIR=/build
+ENV VERSION 1.8.12
+ENV CGO_ENABLED 0
+ENV BUILD_DIR /build
 
 RUN mkdir -p ${BUILD_DIR}
 WORKDIR ${BUILD_DIR}

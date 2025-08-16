@@ -71,7 +71,7 @@ func handlerSelector() (handler http.HandlerFunc) {
 	}
 
 	// If configured, apply key code access control.
-	if "" != config.Get.AccessKey {
+	if len(config.Get.AccessKey) > 0 {
 		handler = handle.AddAccessKey(handler, config.Get.AccessKey)
 	}
 

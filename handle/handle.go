@@ -140,7 +140,7 @@ func PreventListings(serve http.HandlerFunc, folder string, urlPrefix string) ht
 			// If the directory does not contain an index.html file, then
 			// return 'NOT FOUND' to prevent listing of the directory.
 			stat, err := os.Stat(path.Join(folder, strings.TrimPrefix(r.URL.Path, urlPrefix), "index.html"))
-			if err != nil || (err == nil && !stat.Mode().IsRegular()) {
+			if err != nil || !stat.Mode().IsRegular() {
 				http.NotFound(w, r)
 				return
 			}

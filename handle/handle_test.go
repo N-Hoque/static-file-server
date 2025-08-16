@@ -64,7 +64,11 @@ func TestMain(m *testing.M) {
 		if err := setup(); nil != err {
 			log.Fatalf("While setting up test got: %v\n", err)
 		}
-		defer teardown()
+		defer func() {
+			if err := teardown(); err != nil {
+				log.Fatalf("While tearing down test got: %v\n", err)
+			}
+		}()
 		return m.Run()
 	}(m)
 	os.Exit(code)
@@ -149,7 +153,11 @@ func TestWithReferrers(t *testing.T) {
 	}
 
 	success := func(w http.ResponseWriter, r *http.Request, name string) {
-		defer r.Body.Close()
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				t.Errorf("While closing request body got %v", err)
+			}
+		}()
 		w.WriteHeader(ok)
 	}
 
@@ -689,7 +697,7 @@ func TestAddCorsWildcardHeaders(t *testing.T) {
 					}
 				} else {
 					for k := range corsHeaders {
-						if "" != resp.Header.Get(k) {
+						if len(resp.Header.Get(k)) > 0 {
 							t.Errorf(
 								"With CORS disabled expected header '%s' to return '' but got '%s'",
 								k, resp.Header.Get(k),

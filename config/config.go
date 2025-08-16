@@ -145,7 +145,7 @@ func Load(filename string, envMapper EnvMapper) (err error) {
 
 // Log the current configuration.
 func Log() {
-	// YAML marshalling should never error, but if it could, the result is that
+	// YAML marshaling should never error, but if it could, the result is that
 	// the contents of the configuration are not logged.
 	contents, _ := yaml.Marshal(&Get)
 

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"slices"
 	"strings"
 )
 
@@ -67,9 +68,9 @@ type FileServerFunc func(http.ResponseWriter, *http.Request, string)
 // value and returns HTTP error 403 if the value is not found in the whitelist.
 // If one of the whitelisted referrers are an empty string, then it is allowed
 // for the 'Referer' HTTP header key to not be set.
-func WithReferrers(serveFile FileServerFunc, referrers []string) FileServerFunc {
+func WithReferrers(serveFile FileServerFunc, referrers ...string) FileServerFunc {
 	return func(w http.ResponseWriter, r *http.Request, name string) {
-		if !validReferrer(referrers, r.Referer()) {
+		if !validReferer(r.Referer(), referrers...) {
 			http.Error(
 				w,
 				fmt.Sprintf("Invalid source '%s'", r.Referer()),
@@ -226,28 +227,12 @@ func TLSListening(tlsCert, tlsKey string) ListenerFunc {
 	}
 }
 
-// validReferrer returns true if the passed referrer can be resolved by the
+// validReferer returns true if the passed referrer can be resolved by the
 // passed list of referrers.
-func validReferrer(s []string, e string) bool {
-	// Whitelisted referer list is empty. All requests are allowed.
-	if len(s) == 0 {
-		return true
-	}
-
-	for _, a := range s {
-		// Handle blank HTTP Referer header, if configured
-		if a == "" {
-			if e == "" {
-				return true
-			}
-			// Continue loop (all strings start with "")
-			continue
-		}
-
-		// Compare header with allowed prefixes
-		if strings.HasPrefix(e, a) {
-			return true
-		}
-	}
-	return false
+func validReferer(candidateReferer string, refererWhitelist ...string) bool {
+	// If whitelisted referer list is empty then return true as all requests are allowed.
+	// Else, check if the candidate matches any of the valid referers.
+	return len(refererWhitelist) == 0 || slices.ContainsFunc(refererWhitelist, func(targetReferer string) bool {
+		return (targetReferer == "" && candidateReferer == "") || strings.HasPrefix(candidateReferer, targetReferer)
+	})
 }

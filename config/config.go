@@ -38,6 +38,7 @@ func (m RealEnvMapper) GetEnv(key string) string {
 	}
 	return value
 }
+
 func (m RealEnvMapper) SetEnv(key, value string) error {
 	if value == "" {
 		delete(m, key)
@@ -121,22 +122,21 @@ func setDefaults() {
 }
 
 // Load the configuration file.
-func Load(filename string, envMapper EnvMapper) (err error) {
+func Load(filename string, envMapper EnvMapper) error {
 	// If no filename provided, assign envvars.
 	if filename == "" {
 		overrideWithEnvVars(envMapper)
 		return validate()
 	}
 
-	// Read contents from configuration file.
-	var contents []byte
-	if contents, err = os.ReadFile(filename); nil != err {
-		return
+	configFile, err := os.Open(filename)
+	if err != nil {
+		return err
 	}
+	defer configFile.Close()
 
-	// Parse contents into 'Get' configuration.
-	if err = yaml.Unmarshal(contents, &Get); nil != err {
-		return
+	if err := yaml.NewDecoder(configFile).Decode(&Get); err != nil {
+		return err
 	}
 
 	overrideWithEnvVars(envMapper)
@@ -176,11 +176,11 @@ func overrideWithEnvVars(envMapper EnvMapper) {
 func validate() error {
 	// If HTTPS is to be used, verify both TLS_* environment variables are set.
 	useTLS := false
-	if 0 < len(Get.TLSCert) || 0 < len(Get.TLSKey) {
+	if len(Get.TLSCert) > 0 || len(Get.TLSKey) > 0 {
 		if len(Get.TLSCert) == 0 || len(Get.TLSKey) == 0 {
-			msg := "if value for either 'TLS_CERT' or 'TLS_KEY' is set then " +
-				"then value for the other must also be set (values are " +
-				"currently '%s' and '%s', respectively)"
+			msg := `if value for either 'TLS_CERT' or 'TLS_KEY' is set then
+				value for the other must also be set (values are
+				currently '%s' and '%s', respectively)`
 			return fmt.Errorf(msg, Get.TLSCert, Get.TLSKey)
 		}
 		if _, err := os.Stat(Get.TLSCert); nil != err {
@@ -197,7 +197,7 @@ func validate() error {
 	// Verify TLS_MIN_VERS is only (optionally) set if TLS is to be used.
 	Get.TLSMinVers = tls.VersionTLS10
 	if useTLS {
-		if 0 < len(Get.TLSMinVersStr) {
+		if len(Get.TLSMinVersStr) > 0 {
 			var err error
 			if Get.TLSMinVers, err = tlsMinVersAsUint16(
 				Get.TLSMinVersStr,
@@ -219,18 +219,18 @@ func validate() error {
 			Get.TLSMinVersStr = "TLS1.3"
 		}
 	} else {
-		if 0 < len(Get.TLSMinVersStr) {
+		if len(Get.TLSMinVersStr) > 0 {
 			msg := "value for 'TLS_MIN_VERS' is set but 'TLS_CERT' and 'TLS_KEY' are not"
 			return errors.New(msg)
 		}
 	}
 
 	// If the URL path prefix is to be used, verify it is properly formatted.
-	if 0 < len(Get.URLPrefix) &&
+	if len(Get.URLPrefix) > 0 &&
 		(!strings.HasPrefix(Get.URLPrefix, "/") || strings.HasSuffix(Get.URLPrefix, "/")) {
-		msg := "if value for 'URL_PREFIX' is set then the value must start " +
-			"with '/' and not end with '/' (current value of '%s' vs valid " +
-			"example of '/my/prefix'"
+		msg := `if value for 'URL_PREFIX' is set then the value must start
+			with '/' and not end with '/' (current value of '%s' vs valid
+			example of '/my/prefix')`
 		return fmt.Errorf(msg, Get.URLPrefix)
 	}
 
@@ -259,7 +259,7 @@ func envAsUint16(envMapper EnvMapper, key string, fallback uint16) uint16 {
 	// Retrieve the string value of the environment variable. If not set,
 	// fallback is used.
 	valueStr := envMapper.GetEnv(key)
-	if valueStr == "" {
+	if len(valueStr) == 0 {
 		return fallback
 	}
 
@@ -267,7 +267,7 @@ func envAsUint16(envMapper EnvMapper, key string, fallback uint16) uint16 {
 	base := 10
 	bitSize := 16
 	valueAsUint64, err := strconv.ParseUint(valueStr, base, bitSize)
-	if nil != err {
+	if err != nil {
 		log.Printf(
 			"Invalid value for '%s': %v\nUsing fallback: %d",
 			key, err, fallback,
@@ -283,13 +283,13 @@ func envAsBool(envMapper EnvMapper, key string, fallback bool) bool {
 	// Retrieve the string value of the environment variable. If not set,
 	// fallback is used.
 	valueStr := envMapper.GetEnv(key)
-	if valueStr == "" {
+	if len(valueStr) == 0 {
 		return fallback
 	}
 
 	// Parse the string into a boolean.
 	value, err := strAsBool(valueStr)
-	if nil != err {
+	if err != nil {
 		log.Printf(
 			"Invalid value for '%s': %v\nUsing fallback: %t",
 			key, err, fallback,
@@ -302,8 +302,7 @@ func envAsBool(envMapper EnvMapper, key string, fallback bool) bool {
 // strAsBool converts the intent of the passed value into a boolean
 // representation.
 func strAsBool(value string) (result bool, err error) {
-	lvalue := strings.ToLower(value)
-	switch lvalue {
+	switch strings.ToLower(value) {
 	case "0", "false", "f", "no", "n":
 		result = false
 	case "1", "true", "t", "yes", "y":

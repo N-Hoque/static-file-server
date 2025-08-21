@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/halverneus/static-file-server/config"
-	"github.com/halverneus/static-file-server/handle"
+	"github.com/halverneus/static-file-server/pkg/config"
+	"github.com/halverneus/static-file-server/pkg/handle"
 )
 
 var (

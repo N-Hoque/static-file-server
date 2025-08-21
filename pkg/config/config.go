@@ -199,9 +199,7 @@ func validate() error {
 	if useTLS {
 		if len(Get.TLSMinVersStr) > 0 {
 			var err error
-			if Get.TLSMinVers, err = tlsMinVersAsUint16(
-				Get.TLSMinVersStr,
-			); nil != err {
+			if Get.TLSMinVers, err = tlsMinVersAsUint16(Get.TLSMinVersStr); err != nil {
 				return err
 			}
 		}

@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/halverneus/static-file-server/cli/help"
-	"github.com/halverneus/static-file-server/cli/server"
-	"github.com/halverneus/static-file-server/cli/version"
-	"github.com/halverneus/static-file-server/config"
+	"github.com/halverneus/static-file-server/pkg/cli/help"
+	"github.com/halverneus/static-file-server/pkg/cli/server"
+	"github.com/halverneus/static-file-server/pkg/cli/version"
+	"github.com/halverneus/static-file-server/pkg/config"
 )
 
 var (

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"slices"
 	"strings"
 )
 
@@ -23,7 +22,7 @@ var (
 	// Server options to be set prior to calling the listening function.
 	// minTLSVersion is the minimum allowed TLS version to be used by the
 	// server.
-	minTLSVersion uint16 = tls.VersionTLS10
+	minTLSVersion uint16 = tls.VersionTLS12
 )
 
 // defaultListenAndServeTLS is the default implementation of the listening
@@ -230,9 +229,25 @@ func TLSListening(tlsCert, tlsKey string) ListenerFunc {
 // validReferer returns true if the passed referrer can be resolved by the
 // passed list of referrers.
 func validReferer(candidateReferer string, refererWhitelist ...string) bool {
-	// If whitelisted referer list is empty then return true as all requests are allowed.
-	// Else, check if the candidate matches any of the valid referers.
-	return len(refererWhitelist) == 0 || slices.ContainsFunc(refererWhitelist, func(targetReferer string) bool {
-		return (targetReferer == "" && candidateReferer == "") || strings.HasPrefix(candidateReferer, targetReferer)
-	})
+	// If whitelisted referer list is empty, return true as all requests are allowed.
+	if len(refererWhitelist) == 0 {
+		return true
+	}
+
+	for _, targetReferer := range refererWhitelist {
+		// If the candidate is empty, check if there's an empty targetReferer available.
+		if targetReferer == "" {
+			if candidateReferer == "" {
+				return true
+			}
+			// All referers are non-empty
+			continue
+		}
+		// Check if the candidate referer is a prefix to any targetReferer.
+		if strings.HasPrefix(candidateReferer, targetReferer) {
+			return true
+		}
+	}
+
+	return false
 }

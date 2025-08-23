@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/halverneus/static-file-server/config"
-	"github.com/halverneus/static-file-server/handle"
+	"github.com/halverneus/static-file-server/pkg/config"
+	"github.com/halverneus/static-file-server/pkg/handle"
 )
 
 var (
@@ -32,8 +32,11 @@ func Run() error {
 
 // handlerSelector returns the appropriate request handler based on
 // configuration.
-func handlerSelector() (handler http.HandlerFunc) {
-	var serveFileHandler handle.FileServerFunc
+func handlerSelector() http.HandlerFunc {
+	var (
+		handler          http.HandlerFunc
+		serveFileHandler handle.FileServerFunc
+	)
 
 	serveFileHandler = http.ServeFile
 	if config.Get.Debug {
@@ -42,7 +45,7 @@ func handlerSelector() (handler http.HandlerFunc) {
 
 	if len(config.Get.Referrers) > 0 {
 		serveFileHandler = handle.WithReferrers(
-			serveFileHandler, config.Get.Referrers,
+			serveFileHandler, config.Get.Referrers...,
 		)
 	}
 
@@ -65,6 +68,7 @@ func handlerSelector() (handler http.HandlerFunc) {
 			handler = handle.IgnoreIndex(handler)
 		}
 	}
+
 	// If configured, apply wildcard CORS support.
 	if config.Get.Cors {
 		handler = handle.AddCorsWildcardHeaders(handler)
@@ -75,22 +79,19 @@ func handlerSelector() (handler http.HandlerFunc) {
 		handler = handle.AddAccessKey(handler, config.Get.AccessKey)
 	}
 
-	return
+	return handler
 }
 
-// listenerSelector returns the appropriate listener handler based on
-// configuration.
-func listenerSelector() (listener handle.ListenerFunc) {
-	// Serve files over HTTP or HTTPS based on paths to TLS files being
-	// provided.
-	if len(config.Get.TLSCert) > 0 {
-		handle.SetMinimumTLSVersion(config.Get.TLSMinVers)
-		listener = handle.TLSListening(
-			config.Get.TLSCert,
-			config.Get.TLSKey,
-		)
-	} else {
-		listener = handle.Listening()
+// listenerSelector serves files over HTTP or HTTPS
+// based on paths to TLS files being provided
+func listenerSelector() handle.ListenerFunc {
+	if len(config.Get.TLSCert) == 0 {
+		return handle.Listening()
 	}
-	return
+
+	handle.SetMinimumTLSVersion(config.Get.TLSMinVers)
+	return handle.TLSListening(
+		config.Get.TLSCert,
+		config.Get.TLSKey,
+	)
 }

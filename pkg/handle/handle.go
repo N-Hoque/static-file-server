@@ -22,7 +22,7 @@ var (
 	// Server options to be set prior to calling the listening function.
 	// minTLSVersion is the minimum allowed TLS version to be used by the
 	// server.
-	minTLSVersion uint16 = tls.VersionTLS10
+	minTLSVersion uint16 = tls.VersionTLS12
 )
 
 // defaultListenAndServeTLS is the default implementation of the listening
@@ -67,9 +67,9 @@ type FileServerFunc func(http.ResponseWriter, *http.Request, string)
 // value and returns HTTP error 403 if the value is not found in the whitelist.
 // If one of the whitelisted referrers are an empty string, then it is allowed
 // for the 'Referer' HTTP header key to not be set.
-func WithReferrers(serveFile FileServerFunc, referrers []string) FileServerFunc {
+func WithReferrers(serveFile FileServerFunc, referrers ...string) FileServerFunc {
 	return func(w http.ResponseWriter, r *http.Request, name string) {
-		if !validReferrer(referrers, r.Referer()) {
+		if !validReferer(r.Referer(), referrers...) {
 			http.Error(
 				w,
 				fmt.Sprintf("Invalid source '%s'", r.Referer()),
@@ -226,28 +226,28 @@ func TLSListening(tlsCert, tlsKey string) ListenerFunc {
 	}
 }
 
-// validReferrer returns true if the passed referrer can be resolved by the
+// validReferer returns true if the passed referrer can be resolved by the
 // passed list of referrers.
-func validReferrer(s []string, e string) bool {
-	// Whitelisted referer list is empty. All requests are allowed.
-	if len(s) == 0 {
+func validReferer(candidateReferer string, refererWhitelist ...string) bool {
+	// If whitelisted referer list is empty, return true as all requests are allowed.
+	if len(refererWhitelist) == 0 {
 		return true
 	}
 
-	for _, a := range s {
-		// Handle blank HTTP Referer header, if configured
-		if a == "" {
-			if e == "" {
+	for _, targetReferer := range refererWhitelist {
+		// If the candidate is empty, check if there's an empty targetReferer available.
+		if targetReferer == "" {
+			if candidateReferer == "" {
 				return true
 			}
-			// Continue loop (all strings start with "")
+			// All referers are non-empty
 			continue
 		}
-
-		// Compare header with allowed prefixes
-		if strings.HasPrefix(e, a) {
+		// Check if the candidate referer is a prefix to any targetReferer.
+		if strings.HasPrefix(candidateReferer, targetReferer) {
 			return true
 		}
 	}
+
 	return false
 }

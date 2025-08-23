@@ -6,8 +6,7 @@ type Args []string
 // Parse command-line arguments into Args. Value is returned to support daisy
 // chaining.
 func Parse(values []string) Args {
-	args := Args(values)
-	return args
+	return Args(values)
 }
 
 // Matches is used to determine if the arguments match the provided pattern.

@@ -10,16 +10,11 @@ permissions:
   contents: read
   packages: write
 
-env:
-  # Set these repo secrets:
-  # DOCKER_USERNAME, DOCKER_PAT (Personal Access Token),
-  # DOCKER_REPOSITORY (e.g. "nhoque/static-file-server")
-  IMAGE: ${{ secrets.DOCKER_REPOSITORY }}
-
 jobs:
   linux:
     name: Build & Push (linux/amd64, linux/arm64)
     runs-on: ubuntu-latest
+    environment: "Push Image"
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +22,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: ${{ secrets.DOCKER_REPOSITORY }}
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/heads/master') }}
             type=ref,event=tag

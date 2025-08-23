@@ -2,7 +2,7 @@ name: Docker Hub Publish (Linux)
 
 on:
   push:
-    branches: ["master"]
+    branches: ["master-nhoque"]
     tags: ["v*.*.*"]
   workflow_dispatch: {}
 

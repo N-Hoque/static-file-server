@@ -6,8 +6,8 @@ import (
 
 func TestParse(t *testing.T) {
 	matches := func(args Args, orig []string) bool {
-		if nil == orig {
-			return nil == args
+		if orig == nil {
+			return args == nil
 		}
 		if len(orig) != len(args) {
 			return false

@@ -79,11 +79,7 @@ func setup() (err error) {
 		if err = os.MkdirAll(path.Dir(filename), 0700); nil != err {
 			return
 		}
-		if err = os.WriteFile(
-			filename,
-			[]byte(contents),
-			0600,
-		); nil != err {
+		if err = os.WriteFile(filename, []byte(contents), 0600); nil != err {
 			return
 		}
 	}
@@ -131,10 +127,10 @@ func TestWithReferrers(t *testing.T) {
 	noWithRefer := []string{"", ok1, ok2, ok3}
 
 	testCases := []struct {
-		name   string
-		refers []string
-		refer  string
-		code   int
+		name     string
+		referers []string
+		referer  string
+		code     int
 	}{
 		{"Nil refer list", noRefer, bad, ok},
 		{"Empty refer list", emptyRefer, bad, ok},
@@ -163,24 +159,25 @@ func TestWithReferrers(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := WithReferrers(success, tc.refers)
+			handler := WithReferrers(success, tc.referers...)
 
 			fullpath := "http://localhost/" + tmpIndexName
 			req := httptest.NewRequest("GET", fullpath, nil)
-			req.Header.Add("Referer", tc.refer)
+			req.Header.Add("Referer", tc.referer)
 			w := httptest.NewRecorder()
 
 			handler(w, req, "")
 
 			resp := w.Result()
-			_, err := io.ReadAll(resp.Body)
-			if nil != err {
+			defer resp.Body.Close()
+
+			if _, err := io.ReadAll(resp.Body); err != nil {
 				t.Errorf("While reading body got %v", err)
 			}
 			if tc.code != resp.StatusCode {
 				t.Errorf(
 					"With referer '%s' in '%v' expected status code %d but got %d",
-					tc.refer, tc.refers, tc.code, resp.StatusCode,
+					tc.referer, tc.referers, tc.code, resp.StatusCode,
 				)
 			}
 		})
@@ -225,8 +222,9 @@ func TestBasicWithAndWithoutLogging(t *testing.T) {
 				handler(w, req)
 
 				resp := w.Result()
+				defer resp.Body.Close()
 				body, err := io.ReadAll(resp.Body)
-				if nil != err {
+				if err != nil {
 					t.Errorf("While reading body got %v", err)
 				}
 				contents := string(body)
@@ -458,10 +456,7 @@ func TestAddAccessKey(t *testing.T) {
 		handler := AddAccessKey(Basic(serveFile, baseDir), accessKey)
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				fullpath := fmt.Sprintf(
-					"http://localhost/%s?%s=%s",
-					tc.path, tc.key, tc.value,
-				)
+				fullpath := fmt.Sprintf("http://localhost/%s?%s=%s", tc.path, tc.key, tc.value)
 				req := httptest.NewRequest("GET", fullpath, nil)
 				w := httptest.NewRecorder()
 
@@ -626,7 +621,7 @@ func TestValidReferrer(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := validReferrer(tc.refers, tc.refer)
+			result := validReferer(tc.refer, tc.refers...)
 			if result != tc.result {
 				t.Errorf(
 					"With referrers of '%v' and a value of '%s' expected %t but got %t",

@@ -51,7 +51,7 @@ ENVIRONMENT VARIABLES
     PORT
         The port used for binding. If not supplied, defaults to port '8080'.
     REFERRERS
-        A comma-separated list of acceped Referrers based on the 'Referer' HTTP
+        A comma-separated list of accepted Referrers based on the 'Referer' HTTP
         header. If incoming header value is not in the list, a 403 HTTP error is
         returned. To accept requests without a 'Referer' HTTP header in addition
         to the whitelisted values, include an empty value (either with a leading

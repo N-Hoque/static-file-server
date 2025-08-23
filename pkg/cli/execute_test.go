@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/halverneus/static-file-server/config"
+	"github.com/halverneus/static-file-server/pkg/config"
 )
 
 func TestSetupFlags(t *testing.T) {

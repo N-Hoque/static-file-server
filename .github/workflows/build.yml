@@ -66,4 +66,4 @@ jobs:
           EXT=""
           [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
           mkdir -p dist
-          go build -trimpath -o "dist/${APP}_${{ matrix.goos }}_${{ matrix.goarch }}${EXT}" ./bin/serve
+          go build -trimpath -o "dist/${APP}_${{ matrix.goos }}_${{ matrix.goarch }}${EXT}" .

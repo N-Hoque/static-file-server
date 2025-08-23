@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/halverneus/static-file-server/cli/help"
-	"github.com/halverneus/static-file-server/cli/server"
-	"github.com/halverneus/static-file-server/cli/version"
-	"github.com/halverneus/static-file-server/config"
+	"github.com/halverneus/static-file-server/pkg/cli/help"
+	"github.com/halverneus/static-file-server/pkg/cli/server"
+	"github.com/halverneus/static-file-server/pkg/cli/version"
+	"github.com/halverneus/static-file-server/pkg/config"
 )
 
 var (
@@ -86,10 +86,10 @@ func unknownArgs(args Args) func() error {
 }
 
 func withConfig(routine func() error) func() error {
-	return func() (err error) {
+	return func() error {
 		realEnvMapper := config.NewRealEnvMapper()
-		if err = loadConfig(option.configFile, realEnvMapper); nil != err {
-			return
+		if err := loadConfig(option.configFile, realEnvMapper); err != nil {
+			return err
 		}
 		return routine()
 	}

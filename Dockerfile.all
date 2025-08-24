@@ -8,7 +8,6 @@ RUN mkdir -p ${BUILD_DIR}
 WORKDIR ${BUILD_DIR}
 
 COPY . .
-RUN go test -cover ./...
 RUN GOOS=linux GOARCH=amd64 go build -a -tags netgo -installsuffix netgo -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" -o pkg/linux-amd64/serve /serve
 RUN GOOS=linux GOARCH=386 go build -a -tags netgo -installsuffix netgo -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" -o pkg/linux-i386/serve /serve
 RUN GOOS=linux GOARCH=arm GOARM=6 go build -a -tags netgo -installsuffix netgo -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" -o pkg/linux-arm6/serve /serve

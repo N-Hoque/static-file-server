@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: "Push Image"
     needs: [build]
+    if: ${{ needs.build.outputs.did_build == 'true' }}
     steps:
       - uses: actions/checkout@v4
 

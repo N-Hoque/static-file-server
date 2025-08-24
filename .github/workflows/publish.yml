@@ -22,7 +22,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_REPOSITORY }}
+          images: ${{ vars.DOCKER_IMAGE }}
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/heads/master') }}
             type=ref,event=tag
@@ -35,7 +35,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.DOCKER_REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PAT }}
 
       - name: Build & Push
@@ -50,5 +50,5 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_REPOSITORY }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_REPOSITORY }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ vars.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ vars.DOCKER_IMAGE }}:buildcache,mode=max

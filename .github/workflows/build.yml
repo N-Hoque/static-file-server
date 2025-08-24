@@ -7,14 +7,7 @@ on:
     - go.sum
     - 'cmd/**'
     - 'internal/**'
-  push:
-    branches: ["master-nhoque"]
-    paths:
-    - '**.go'
-    - go.mod
-    - go.sum
-    - 'cmd/**'
-    - 'internal/**'
+  workflow_call:
 
 jobs:
   lint:

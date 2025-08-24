@@ -11,14 +11,18 @@ permissions:
   packages: write
 
 jobs:
-  linux:
-    name: Build & Push
+  build:
+    uses: ./.github/workflows/build.yml
+
+  publish:
+    name: Publish
     runs-on: ubuntu-latest
     environment: "Push Image"
+    needs: [build]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Docker meta
+      - name: Create Docker Metadata
         id: meta
         uses: docker/metadata-action@v5
         with:

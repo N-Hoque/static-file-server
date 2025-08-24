@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/halverneus/static-file-server/pkg/config"
-	"github.com/halverneus/static-file-server/pkg/handle"
+	"github.com/N-Hoque/static-file-server/pkg/config"
+	"github.com/N-Hoque/static-file-server/pkg/handle"
 )
 
 func TestRun(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/halverneus/static-file-server
+module github.com/N-Hoque/static-file-server
 
 go 1.25.0
 

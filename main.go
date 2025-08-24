@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/halverneus/static-file-server/pkg/cli"
+	"github.com/N-Hoque/static-file-server/pkg/cli"
 )
 
 func main() {

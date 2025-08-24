@@ -2,7 +2,7 @@ name: Docker Hub Publish (Linux)
 
 on:
   push:
-    branches: ["master"]
+    branches: ["master-nhoque"]
     tags: ["v*.*.*"]
   workflow_dispatch: {}
 
@@ -10,16 +10,11 @@ permissions:
   contents: read
   packages: write
 
-env:
-  # Set these repo secrets:
-  # DOCKER_USERNAME, DOCKER_PAT (Personal Access Token),
-  # DOCKER_REPOSITORY (e.g. "nhoque/static-file-server")
-  IMAGE: ${{ secrets.DOCKER_REPOSITORY }}
-
 jobs:
   linux:
-    name: Build & Push (linux/amd64, linux/arm64)
+    name: Build & Push
     runs-on: ubuntu-latest
+    environment: "Push Image"
     steps:
       - uses: actions/checkout@v4
 
@@ -27,14 +22,11 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE }}
+          images: ${{ vars.DOCKER_IMAGE }}
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/heads/master') }}
             type=ref,event=tag
             type=sha,format=long
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
@@ -42,8 +34,8 @@ jobs:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
+          registry: ${{ vars.DOCKER_REGISTRY }}
+          username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PAT }}
 
       - name: Build & Push
@@ -55,8 +47,8 @@ jobs:
           push: true
           provenance: false
           sbom: false
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ vars.DOCKER_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ vars.DOCKER_IMAGE }}:buildcache,mode=max

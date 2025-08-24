@@ -15,7 +15,7 @@ RUN go mod download
 COPY . .
 
 RUN go test -cover ./...
-RUN go build -a -tags netgo -installsuffix netgo -ldflags "-s -w -X github.com/halverneus/static-file-server/pkg/cli/version.version=${VERSION}" -o /serve /build
+RUN go build -a -tags netgo -installsuffix netgo -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" -o /serve /build
 
 ################################################################################
 ## DEPLOYMENT CONTAINER
@@ -30,9 +30,9 @@ ENTRYPOINT ["/serve"]
 CMD []
 
 # Metadata
-LABEL life.apets.vendor="Halverneus" \
-    life.apets.url="https://github.com/halverneus/static-file-server" \
-    life.apets.name="Static File Server" \
-    life.apets.description="A tiny static file server" \
-    life.apets.version="v${VERSION}" \
-    life.apets.schema-version="1.0"
+LABEL life.apets.vendor="N-Hoque" \
+      life.apets.url="https://github.com/N-Hoque/static-file-server" \
+      life.apets.name="Static File Server" \
+      life.apets.description="A tiny static file server (forked from Halverneus)" \
+      life.apets.version="v${VERSION}" \
+      life.apets.schema-version="1.0"

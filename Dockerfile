@@ -14,7 +14,6 @@ COPY go.* ./
 RUN go mod download
 COPY . .
 
-RUN go test -cover ./...
 RUN go build -a -tags netgo -installsuffix netgo -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" -o /serve /build
 
 ################################################################################

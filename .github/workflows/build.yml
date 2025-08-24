@@ -1,8 +1,20 @@
 name: CI
 on:
   pull_request:
+    paths:
+    - '**.go'
+    - go.mod
+    - go.sum
+    - 'cmd/**'
+    - 'internal/**'
   push:
     branches: ["master-nhoque"]
+    paths:
+    - '**.go'
+    - go.mod
+    - go.sum
+    - 'cmd/**'
+    - 'internal/**'
 
 jobs:
   lint:
@@ -39,6 +51,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'push' }}
     needs: [lint, test]
     strategy:
       fail-fast: false

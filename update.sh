@@ -26,7 +26,7 @@ docker cp "${ID}:/build/pkg/win-amd64/serve.exe" "./out/static-file-server-${VER
 docker rm -f "${ID}"
 docker rmi sfs-builder
 
-docker buildx build --push --platform linux/arm/v7,linux/arm64/v8,linux/amd64 --tag "halverneus/static-file-server:${VERSION}" .
-docker buildx build --push --platform linux/arm/v7,linux/arm64/v8,linux/amd64 --tag halverneus/static-file-server:latest .
+docker buildx build --push --platform linux/arm/v7,linux/arm64/v8,linux/amd64 --tag "nhoque/static-file-server:${VERSION}" .
+docker buildx build --push --platform linux/arm/v7,linux/arm64/v8,linux/amd64 --tag nhoque/static-file-server:latest .
 
 echo "Done"

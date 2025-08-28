@@ -11,6 +11,8 @@ jobs:
   check:
     name: Check for changes
     runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.file-changes.outputs.go }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3

@@ -10,9 +10,8 @@ func Run() error {
 	return nil
 }
 
-var (
-	// Text for directly accessing help.
-	Text = `
+// Text for directly accessing help.
+var Text = `
 NAME
     static-file-server
 
@@ -187,4 +186,3 @@ USAGE
         static-file-server
             Returns 'NOT FOUND': wget http://my.machine/
 `
-)

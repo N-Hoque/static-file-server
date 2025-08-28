@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -48,25 +49,23 @@ func (m RealEnvMapper) SetEnv(key, value string) error {
 	return nil
 }
 
-var (
-	// Get the desired configuration value.
-	Get struct {
-		Cors          bool     `yaml:"cors"`
-		Debug         bool     `yaml:"debug"`
-		Folder        string   `yaml:"folder"`
-		Host          string   `yaml:"host"`
-		Port          uint16   `yaml:"port"`
-		AllowIndex    bool     `yaml:"allow-index"`
-		ShowListing   bool     `yaml:"show-listing"`
-		TLSCert       string   `yaml:"tls-cert"`
-		TLSKey        string   `yaml:"tls-key"`
-		TLSMinVers    uint16   `yaml:"-"`
-		TLSMinVersStr string   `yaml:"tls-min-vers"`
-		URLPrefix     string   `yaml:"url-prefix"`
-		Referrers     []string `yaml:"referrers"`
-		AccessKey     string   `yaml:"access-key"`
-	}
-)
+// Get the desired configuration value.
+var Get struct {
+	Cors          bool     `yaml:"cors"`
+	Debug         bool     `yaml:"debug"`
+	Folder        string   `yaml:"folder"`
+	Host          string   `yaml:"host"`
+	Port          uint16   `yaml:"port"`
+	AllowIndex    bool     `yaml:"allow-index"`
+	ShowListing   bool     `yaml:"show-listing"`
+	TLSCert       string   `yaml:"tls-cert"`
+	TLSKey        string   `yaml:"tls-key"`
+	TLSMinVers    uint16   `yaml:"-"`
+	TLSMinVersStr string   `yaml:"tls-min-vers"`
+	URLPrefix     string   `yaml:"url-prefix"`
+	Referrers     []string `yaml:"referrers"`
+	AccessKey     string   `yaml:"access-key"`
+}
 
 const (
 	corsKey        = "CORS"
@@ -129,7 +128,7 @@ func Load(filename string, envMapper EnvMapper) error {
 		return validate()
 	}
 
-	configFile, err := os.Open(filename)
+	configFile, err := os.Open(filepath.Clean(filename))
 	if err != nil {
 		return err
 	}

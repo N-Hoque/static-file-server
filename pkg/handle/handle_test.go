@@ -1,7 +1,7 @@
 package handle
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -17,16 +17,13 @@ import (
 var (
 	baseDir             = "tmp/"
 	subDir              = "sub/"
-	subDeepDir          = "sub/deep/" //nolint:unused
 	tmpIndexName        = "index.html"
 	tmpFileName         = "file.txt"
 	tmpBadName          = "bad.txt"
 	tmpSubIndexName     = "sub/index.html"
 	tmpSubFileName      = "sub/file.txt"
-	tmpSubBadName       = "sub/bad.txt" //nolint:unused
 	tmpSubDeepIndexName = "sub/deep/index.html"
 	tmpSubDeepFileName  = "sub/deep/file.txt"
-	tmpSubDeepBadName   = "sub/deep/bad.txt" //nolint:unused
 	tmpNoIndexDir       = "noindex/"
 	tmpNoIndexName      = "noindex/noindex.txt"
 
@@ -76,10 +73,10 @@ func TestMain(m *testing.M) {
 
 func setup() (err error) {
 	for filename, contents := range files {
-		if err = os.MkdirAll(path.Dir(filename), 0700); nil != err {
+		if err = os.MkdirAll(path.Dir(filename), 0o700); nil != err {
 			return
 		}
-		if err = os.WriteFile(filename, []byte(contents), 0600); nil != err {
+		if err = os.WriteFile(filename, []byte(contents), 0o600); nil != err {
 			return
 		}
 	}
@@ -162,7 +159,7 @@ func TestWithReferrers(t *testing.T) {
 			handler := WithReferrers(success, tc.referers...)
 
 			fullpath := "http://localhost/" + tmpIndexName
-			req := httptest.NewRequest("GET", fullpath, nil)
+			req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 			req.Header.Add("Referer", tc.referer)
 			w := httptest.NewRecorder()
 
@@ -215,7 +212,7 @@ func TestBasicWithAndWithoutLogging(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				fullpath := "http://localhost/" + tc.path
-				req := httptest.NewRequest("GET", fullpath, nil)
+				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				req.Header.Add("Referer", tc.refer)
 				w := httptest.NewRecorder()
 
@@ -269,7 +266,7 @@ func TestPrefix(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				fullpath := "http://localhost" + tc.path
-				req := httptest.NewRequest("GET", fullpath, nil)
+				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
 
 				handler(w, req)
@@ -318,7 +315,7 @@ func TestIgnoreIndex(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				fullpath := "http://localhost/" + tc.path
-				req := httptest.NewRequest("GET", fullpath, nil)
+				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
 
 				handler(w, req)
@@ -368,7 +365,7 @@ func TestPreventListings(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				fullpath := "http://localhost/" + tc.path
-				req := httptest.NewRequest("GET", fullpath, nil)
+				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
 
 				handler(w, req)
@@ -403,7 +400,7 @@ func TestAddAccessKey(t *testing.T) {
 	code := func(path, key string) string {
 		data := []byte("/" + path + key)
 		fmt.Printf("TEST: '%s'\n", data)
-		return fmt.Sprintf("%X", md5.Sum(data))
+		return fmt.Sprintf("%X", sha256.Sum256(data))
 	}
 
 	// Define test cases.
@@ -457,7 +454,7 @@ func TestAddAccessKey(t *testing.T) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				fullpath := fmt.Sprintf("http://localhost/%s?%s=%s", tc.path, tc.key, tc.value)
-				req := httptest.NewRequest("GET", fullpath, nil)
+				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
 
 				handler(w, req)
@@ -657,7 +654,7 @@ func TestAddCorsWildcardHeaders(t *testing.T) {
 				}
 
 				fullpath := "http://localhost/" + tmpFileName
-				req := httptest.NewRequest("GET", fullpath, nil)
+				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
 
 				handler(w, req)

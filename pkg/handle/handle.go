@@ -1,7 +1,7 @@
 package handle
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
 	"log"
@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 var (
@@ -18,12 +19,10 @@ var (
 	setHandler        = http.HandleFunc
 )
 
-var (
-	// Server options to be set prior to calling the listening function.
-	// minTLSVersion is the minimum allowed TLS version to be used by the
-	// server.
-	minTLSVersion uint16 = tls.VersionTLS12
-)
+// Server options to be set prior to calling the listening function.
+// minTLSVersion is the minimum allowed TLS version to be used by the
+// server.
+var minTLSVersion uint16 = tls.VersionTLS12
 
 // defaultListenAndServeTLS is the default implementation of the listening
 // function for serving with TLS enabled. This is, effectively, a copy from
@@ -40,6 +39,7 @@ func defaultListenAndServeTLS(
 		TLSConfig: &tls.Config{
 			MinVersion: minTLSVersion,
 		},
+		ReadHeaderTimeout: 3 * time.Second,
 	}
 	return server.ListenAndServeTLS(certFile, keyFile)
 }
@@ -174,11 +174,11 @@ func AddCorsWildcardHeaders(serve http.HandlerFunc) http.HandlerFunc {
 }
 
 // AddAccessKey provides Access Control through url parameters. The access key
-// is set by ACCESS_KEY. md5sum is computed by queried path + access key
+// is set by ACCESS_KEY. sha256sum is computed by queried path + access key
 // (e.g. "/my/file" + ACCESS_KEY)
 func AddAccessKey(serve http.HandlerFunc, accessKey string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get key or md5sum from this access.
+		// Get key or sha256sum from this access.
 		keys, keyOk := r.URL.Query()["key"]
 		var code string
 		if !keyOk || len(keys[0]) < 1 {
@@ -192,13 +192,13 @@ func AddAccessKey(serve http.HandlerFunc, accessKey string) http.HandlerFunc {
 		} else {
 			// In case a key is provided, convert to code.
 			data := []byte(r.URL.Path + keys[0])
-			hash := md5.Sum(data)
+			hash := sha256.Sum256(data)
 			code = fmt.Sprintf("%X", hash)
 		}
 
-		// Compute the correct md5sum of this access.
+		// Compute the correct sha256sum of this access.
 		localData := []byte(r.URL.Path + accessKey)
-		hash := md5.Sum(localData)
+		hash := sha256.Sum256(localData)
 		localCode := fmt.Sprintf("%X", hash)
 
 		// Compare the two.

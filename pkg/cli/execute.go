@@ -10,13 +10,11 @@ import (
 	"github.com/N-Hoque/static-file-server/pkg/config"
 )
 
-var (
-	option struct {
-		configFile  string
-		helpFlag    bool
-		versionFlag bool
-	}
-)
+var option struct {
+	configFile  string
+	helpFlag    bool
+	versionFlag bool
+}
 
 // Assignments used to simplify testing.
 var (

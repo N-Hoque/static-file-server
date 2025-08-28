@@ -19,6 +19,7 @@ func NewMockEnvMapper() *MockEnvMapper {
 		EnvVars: make(map[string]string),
 	}
 }
+
 func (m *MockEnvMapper) GetEnv(key string) string {
 	value, exists := m.EnvVars[key]
 	if !exists {
@@ -26,6 +27,7 @@ func (m *MockEnvMapper) GetEnv(key string) string {
 	}
 	return value
 }
+
 func (m *MockEnvMapper) SetEnv(key, value string) error {
 	if value == "" {
 		delete(m.EnvVars, key)
@@ -74,7 +76,7 @@ func TestLoad(t *testing.T) {
 		contents := []byte("{")
 		defer func() { _ = os.Remove(tempfile.Name()) }()
 
-		if err := os.WriteFile(tempfile.Name(), contents, 0666); err != nil {
+		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
 			t.Errorf("Failed to save bad YAML file with: %v\n", err)
 		}
 		if err := Load(tempfile.Name(), testEnvMapper); err == nil {
@@ -97,7 +99,7 @@ func TestLoad(t *testing.T) {
 			}
 		}()
 
-		if err := os.WriteFile(tempfile.Name(), contents, 0666); err != nil {
+		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
 			t.Errorf("Failed to save good YAML file with: %v\n", err)
 		}
 		if err := Load(tempfile.Name(), testEnvMapper); err != nil {
@@ -575,7 +577,6 @@ func TestStrAsBool(t *testing.T) {
 				)
 			}
 		})
-
 	}
 }
 

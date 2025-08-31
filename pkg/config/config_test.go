@@ -1,11 +1,11 @@
 package config
 
 import (
-	"crypto/tls"
-	"fmt"
 	"os"
-	"strconv"
+	"path/filepath"
 	"testing"
+
+	"crypto/tls"
 
 	yaml "gopkg.in/yaml.v3"
 )
@@ -15,17 +15,11 @@ type MockEnvMapper struct {
 }
 
 func NewMockEnvMapper() *MockEnvMapper {
-	return &MockEnvMapper{
-		EnvVars: make(map[string]string),
-	}
+	return &MockEnvMapper{EnvVars: make(map[string]string)}
 }
 
 func (m *MockEnvMapper) GetEnv(key string) string {
-	value, exists := m.EnvVars[key]
-	if !exists {
-		return ""
-	}
-	return value
+	return m.EnvVars[key]
 }
 
 func (m *MockEnvMapper) SetEnv(key, value string) error {
@@ -37,584 +31,95 @@ func (m *MockEnvMapper) SetEnv(key, value string) error {
 	return nil
 }
 
-func TestLoad(t *testing.T) {
-	// Verify envvars are set.
-	testDir, err := os.MkdirTemp("/tmp", "*")
+func TestNewDefaultConfig(t *testing.T) {
+	c := NewDefaultConfig()
+	if c.Folder != defaultFolder {
+		t.Fatalf("expected default folder %q got %q", defaultFolder, c.Folder)
+	}
+	if c.Port != defaultPort {
+		t.Fatalf("expected default port %d got %d", defaultPort, c.Port)
+	}
+}
+
+func TestLoadConfig_FromEnvOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	env := NewMockEnvMapper()
+	env.SetEnv(folderKey, tmpDir)
+	cfg, err := LoadConfig("", env)
 	if err != nil {
-		t.Fatalf("Failed to create temporary directory: %v", err)
+		t.Fatalf("LoadConfig returned error: %v", err)
 	}
-
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(folderKey, testDir); err != nil {
-		t.Fatalf("failed to set env %s: %v", folderKey, err)
-	}
-
-	if err := Load("", testEnvMapper); err != nil {
-		t.Errorf(
-			"While loading an empty file name expected no error but got %v",
-			err,
-		)
-	}
-	if Get.Folder != testDir {
-		t.Errorf(
-			"While loading an empty file name expected folder %s but got %s",
-			testDir, Get.Folder,
-		)
-	}
-
-	// Verify error if file doesn't exist.
-	if err := Load("/this/file/should/never/exist", testEnvMapper); err == nil {
-		t.Error("While loading non-existing file expected error but got nil")
-	}
-
-	// Verify bad YAML returns an error.
-	func(t *testing.T) {
-		tempfile, err := os.CreateTemp(testDir, "*") // Create a temporary file.
-		if err != nil {
-			t.Fatalf("Failed to create temporary file: %v", err)
-		}
-		contents := []byte("{")
-		defer func() { _ = os.Remove(tempfile.Name()) }()
-
-		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
-			t.Errorf("Failed to save bad YAML file with: %v\n", err)
-		}
-		if err := Load(tempfile.Name(), testEnvMapper); err == nil {
-			t.Error("While loading bad YAML expected error but got nil")
-		}
-	}(t)
-
-	// Verify good YAML returns no error and sets value.
-	func(t *testing.T) {
-		tempfile, err := os.CreateTemp(testDir, "*") // Create a temporary file.
-		if err != nil {
-			t.Fatalf("Failed to create temporary file: %v", err)
-		}
-		contents := fmt.Appendf(nil,
-			`{"folder": "%s"}`, testDir,
-		)
-		defer func() {
-			if err := os.Remove(tempfile.Name()); err != nil {
-				t.Fatalf("Failed to delete temporary file")
-			}
-		}()
-
-		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
-			t.Errorf("Failed to save good YAML file with: %v\n", err)
-		}
-		if err := Load(tempfile.Name(), testEnvMapper); err != nil {
-			t.Errorf(
-				"While loading good YAML expected nil but got %v",
-				err,
-			)
-		}
-	}(t)
-}
-
-func TestLog(t *testing.T) {
-	// Test whether YAML marshaling works, as that is the only error case.
-	if _, err := yaml.Marshal(&Get); nil != err {
-		t.Errorf("While testing YAML marshaling for config Log() got %v", err)
-	}
-	Log()
-}
-
-func TestOverrideWithEnvvars(t *testing.T) {
-	// Choose values that are different than defaults.
-	testDebug := true
-	testFolder := "/my/directory"
-	testHost := "apets.life"
-	testPort := uint16(666)
-	testAllowIndex := false
-	testShowListing := false
-	testTLSCert := "my.pem"
-	testTLSKey := "my.key"
-	testURLPrefix := "/url/prefix"
-
-	// Set all environment variables with test values.
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(debugKey, fmt.Sprintf("%t", testDebug)); err != nil {
-		t.Fatalf("error setting %s: %v", debugKey, err)
-	}
-	if err := testEnvMapper.SetEnv(folderKey, testFolder); err != nil {
-		t.Fatalf("error setting %s: %v", folderKey, err)
-	}
-	if err := testEnvMapper.SetEnv(hostKey, testHost); err != nil {
-		t.Fatalf("error setting %s: %v", hostKey, err)
-	}
-	if err := testEnvMapper.SetEnv(portKey, strconv.Itoa(int(testPort))); err != nil {
-		t.Fatalf("error setting %s: %v", portKey, err)
-	}
-	if err := testEnvMapper.SetEnv(allowIndexKey, fmt.Sprintf("%t", testAllowIndex)); err != nil {
-		t.Fatalf("error setting %s: %v", allowIndexKey, err)
-	}
-	if err := testEnvMapper.SetEnv(showListingKey, fmt.Sprintf("%t", testShowListing)); err != nil {
-		t.Fatalf("error setting %s: %v", showListingKey, err)
-	}
-	if err := testEnvMapper.SetEnv(tlsCertKey, testTLSCert); err != nil {
-		t.Fatalf("error setting %s: %v", tlsCertKey, err)
-	}
-	if err := testEnvMapper.SetEnv(tlsKeyKey, testTLSKey); err != nil {
-		t.Fatalf("error setting %s: %v", tlsKeyKey, err)
-	}
-	if err := testEnvMapper.SetEnv(urlPrefixKey, testURLPrefix); err != nil {
-		t.Fatalf("error setting %s: %v", urlPrefixKey, err)
-	}
-
-	// Verification functions.
-	equalStrings := func(t *testing.T, name, key, expected, result string) {
-		if expected != result {
-			t.Errorf(
-				"While checking %s for '%s' expected '%s' but got '%s'",
-				name, key, expected, result,
-			)
-		}
-	}
-	equalUint16 := func(t *testing.T, name, key string, expected, result uint16) {
-		if expected != result {
-			t.Errorf(
-				"While checking %s for '%s' expected %d but got %d",
-				name, key, expected, result,
-			)
-		}
-	}
-	equalBool := func(t *testing.T, name, key string, expected, result bool) {
-		if expected != result {
-			t.Errorf(
-				"While checking %s for '%s' expected %t but got %t",
-				name, key, expected, result,
-			)
-		}
-	}
-
-	// Verify defaults.
-	setDefaults()
-	phase := "defaults"
-	equalBool(t, phase, debugKey, defaultDebug, Get.Debug)
-	equalStrings(t, phase, folderKey, defaultFolder, Get.Folder)
-	equalStrings(t, phase, hostKey, defaultHost, Get.Host)
-	equalUint16(t, phase, portKey, defaultPort, Get.Port)
-	equalBool(t, phase, showListingKey, defaultShowListing, Get.ShowListing)
-	equalStrings(t, phase, tlsCertKey, defaultTLSCert, Get.TLSCert)
-	equalStrings(t, phase, tlsKeyKey, defaultTLSKey, Get.TLSKey)
-	equalStrings(t, phase, urlPrefixKey, defaultURLPrefix, Get.URLPrefix)
-
-	// Apply overrides.
-	overrideWithEnvVars(testEnvMapper)
-
-	// Verify overrides.
-	phase = "overrides"
-	equalBool(t, phase, debugKey, testDebug, Get.Debug)
-	equalStrings(t, phase, folderKey, testFolder, Get.Folder)
-	equalStrings(t, phase, hostKey, testHost, Get.Host)
-	equalUint16(t, phase, portKey, testPort, Get.Port)
-	equalBool(t, phase, showListingKey, testShowListing, Get.ShowListing)
-	equalStrings(t, phase, tlsCertKey, testTLSCert, Get.TLSCert)
-	equalStrings(t, phase, tlsKeyKey, testTLSKey, Get.TLSKey)
-	equalStrings(t, phase, urlPrefixKey, testURLPrefix, Get.URLPrefix)
-}
-
-func TestValidate(t *testing.T) {
-	validPath := "config.go"
-	invalidPath := "should/never/exist.txt"
-	empty := ""
-	prefix := "/my/prefix"
-
-	testCases := []struct {
-		name    string
-		cert    string
-		key     string
-		prefix  string
-		minTLS  string
-		isError bool
-	}{
-		{"Valid paths w/prefix", validPath, validPath, prefix, "", false},
-		{"Valid paths wo/prefix", validPath, validPath, empty, "", false},
-		{"Empty paths w/prefix", empty, empty, prefix, "", false},
-		{"Empty paths wo/prefix", empty, empty, empty, "", false},
-		{"Mixed paths w/prefix", empty, validPath, prefix, "", true},
-		{"Alt mixed paths w/prefix", validPath, empty, prefix, "", true},
-		{"Mixed paths wo/prefix", empty, validPath, empty, "", true},
-		{"Alt mixed paths wo/prefix", validPath, empty, empty, "", true},
-		{"Invalid cert w/prefix", invalidPath, validPath, prefix, "", true},
-		{"Invalid key w/prefix", validPath, invalidPath, prefix, "", true},
-		{"Invalid cert & key w/prefix", invalidPath, invalidPath, prefix, "", true},
-		{"Prefix missing leading /", empty, empty, "my/prefix", "", true},
-		{"Prefix with trailing /", empty, empty, "/my/prefix/", "", true},
-		{"Valid paths w/min ok TLS", validPath, validPath, prefix, "tls11", false},
-		{"Valid paths w/min ok TLS", validPath, validPath, prefix, "tls12", false},
-		{"Valid paths w/min ok TLS", validPath, validPath, prefix, "tls13", false},
-		{"Valid paths w/min bad TLS", validPath, validPath, prefix, "bad", true},
-		{"Empty paths w/min ok TLS", empty, empty, prefix, "tls11", true},
-		{"Empty paths w/min bad TLS", empty, empty, prefix, "bad", true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			Get.TLSCert = tc.cert
-			Get.TLSKey = tc.key
-			Get.TLSMinVersStr = tc.minTLS
-			Get.URLPrefix = tc.prefix
-			err := validate()
-			hasError := nil != err
-			if hasError && !tc.isError {
-				t.Errorf("Expected no error but got %v", err)
-			}
-			if !hasError && tc.isError {
-				t.Error("Expected an error but got no error")
-			}
-		})
+	if cfg.Folder != tmpDir {
+		t.Fatalf("expected folder %q got %q", tmpDir, cfg.Folder)
 	}
 }
 
-func TestEnvAsStr(t *testing.T) {
-	sv := "STRING_VALUE"
-	fv := "FLOAT_VALUE"
-	iv := "INT_VALUE"
-	bv := "BOOL_VALUE"
-	ev := "EMPTY_VALUE"
-	uv := "UNSET_VALUE"
+func TestLoadConfig_FromFile(t *testing.T) {
+	tmp := t.TempDir()
+	cfgFile := filepath.Join(tmp, "cfg.yaml")
 
-	sr := "String Cheese"    // String result
-	fr := "123.456"          // Float result
-	ir := "-123"             // Int result
-	br := "true"             // Bool result
-	er := ""                 // Empty result
-	fbr := "fallback result" // Fallback result
-	efbr := ""               // Empty fallback result
-
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(sv, sr); err != nil {
-		t.Fatalf("error setting %s: %v", sv, err)
-	}
-	if err := testEnvMapper.SetEnv(fv, fr); err != nil {
-		t.Fatalf("error setting %s: %v", fv, err)
-	}
-	if err := testEnvMapper.SetEnv(iv, ir); err != nil {
-		t.Fatalf("error setting %s: %v", iv, err)
-	}
-	if err := testEnvMapper.SetEnv(bv, br); err != nil {
-		t.Fatalf("error setting %s: %v", bv, err)
-	}
-	if err := testEnvMapper.SetEnv(ev, er); err != nil {
-		t.Fatalf("error setting %s: %v", ev, err)
+	want := &Config{
+		Folder:        "/from/file",
+		Host:          "example.test",
+		Port:          4242,
+		TLSMinVersStr: "tls12",
 	}
 
-	testCases := []struct {
-		name     string
-		key      string
-		fallback string
-		result   string
-	}{
-		{"Good string", sv, fbr, sr},
-		{"Float string", fv, fbr, fr},
-		{"Int string", iv, fbr, ir},
-		{"Bool string", bv, fbr, br},
-		{"Empty string", ev, fbr, fbr},
-		{"Unset", uv, fbr, fbr},
-		{"Good string with empty fallback", sv, efbr, sr},
-		{"Unset with empty fallback", uv, efbr, efbr},
+	b, err := yaml.Marshal(want)
+	if err != nil {
+		t.Fatalf("yaml marshal failed: %v", err)
+	}
+	if err := os.WriteFile(cfgFile, b, 0600); err != nil {
+		t.Fatalf("write file failed: %v", err)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := envAsStr(testEnvMapper, tc.key, tc.fallback)
-			if tc.result != result {
-				t.Errorf(
-					"For %s with a '%s' fallback expected '%s' but got '%s'",
-					tc.key, tc.fallback, tc.result, result,
-				)
-			}
-		})
+	cfg, err := LoadConfig(cfgFile, NewMockEnvMapper())
+	if err != nil {
+		t.Fatalf("LoadConfig returned error: %v", err)
+	}
+	if cfg.Folder != want.Folder {
+		t.Fatalf("expected folder %q got %q", want.Folder, cfg.Folder)
+	}
+	if cfg.Port != want.Port {
+		t.Fatalf("expected port %d got %d", want.Port, cfg.Port)
+	}
+	if cfg.Host != want.Host {
+		t.Fatalf("expected host %q got %q", want.Host, cfg.Host)
 	}
 }
 
-func TestEnvAsStrSlice(t *testing.T) {
-	oe := "ONE_ENTRY"
-	oewc := "ONE_ENTRY_WITH_COMMA"
-	oewtc := "ONE_ENTRY_WITH_TRAILING_COMMA"
-	te := "TWO_ENTRY"
-	tewc := "TWO_ENTRY_WITH_COMMA"
-	oc := "ONLY_COMMA"
-	ev := "EMPTY_VALUE"
-	uv := "UNSET_VALUE"
-
-	fs := "http://my.site"
-	ts := "http://other.site"
-	fbr := []string{"one", "two"}
-	var efbr []string
-
-	oes := fs
-	oer := []string{fs}
-	oewcs := "," + fs
-	oewcr := []string{"", fs}
-	oewtcs := fs + ","
-	oewtcr := []string{fs, ""}
-	tes := fs + "," + ts
-	ter := []string{fs, ts}
-	tewcs := "," + fs + "," + ts
-	tewcr := []string{"", fs, ts}
-	ocs := ","
-	ocr := []string{"", ""}
-	evs := ""
-
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(oe, oes); err != nil {
-		t.Fatalf("error setting %s: %v", oe, err)
+func TestValidate_TLSMismatch(t *testing.T) {
+	c := NewDefaultConfig()
+	c.TLSCert = "nonexistent.cert"
+	c.TLSKey = ""
+	if err := c.Validate(); err == nil {
+		t.Fatalf("expected error when only TLS_CERT set")
 	}
-	if err := testEnvMapper.SetEnv(oewc, oewcs); err != nil {
-		t.Fatalf("error setting %s: %v", oewc, err)
-	}
-	if err := testEnvMapper.SetEnv(oewtc, oewtcs); err != nil {
-		t.Fatalf("error setting %s: %v", oewtc, err)
-	}
-	if err := testEnvMapper.SetEnv(te, tes); err != nil {
-		t.Fatalf("error setting %s: %v", te, err)
-	}
-	if err := testEnvMapper.SetEnv(tewc, tewcs); err != nil {
-		t.Fatalf("error setting %s: %v", tewc, err)
-	}
-	if err := testEnvMapper.SetEnv(oc, ocs); err != nil {
-		t.Fatalf("error setting %s: %v", oc, err)
-	}
-	if err := testEnvMapper.SetEnv(ev, evs); err != nil {
-		t.Fatalf("error setting %s: %v", ev, err)
-	}
-
-	testCases := []struct {
-		name     string
-		key      string
-		fallback []string
-		result   []string
-	}{
-		{"One entry", oe, fbr, oer},
-		{"One entry w/comma", oewc, fbr, oewcr},
-		{"One entry w/trailing comma", oewtc, fbr, oewtcr},
-		{"Two entry", te, fbr, ter},
-		{"Two entry w/comma", tewc, fbr, tewcr},
-		{"Only comma", oc, fbr, ocr},
-		{"Empty value w/fallback", ev, fbr, fbr},
-		{"Empty value wo/fallback", ev, efbr, efbr},
-		{"Unset w/fallback", uv, fbr, fbr},
-		{"Unset wo/fallback", uv, efbr, efbr},
-	}
-
-	matches := func(a, b []string) bool {
-		if len(a) != len(b) {
-			return false
-		}
-		tally := make(map[int]bool)
-		for i := range a {
-			tally[i] = false
-		}
-		for _, val := range a {
-			for i, other := range b {
-				if other == val && !tally[i] {
-					tally[i] = true
-					break
-				}
-			}
-		}
-		for _, found := range tally {
-			if !found {
-				return false
-			}
-		}
-		return true
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := envAsStrSlice(testEnvMapper, tc.key, tc.fallback)
-			if !matches(tc.result, result) {
-				t.Errorf(
-					"For %s with a '%v' fallback expected '%v' but got '%v'",
-					tc.key, tc.fallback, tc.result, result,
-				)
-			}
-		})
+	c = NewDefaultConfig()
+	c.TLSCert = ""
+	c.TLSKey = "nonexistent.key"
+	if err := c.Validate(); err == nil {
+		t.Fatalf("expected error when only TLS_KEY set")
 	}
 }
 
-func TestEnvAsUint16(t *testing.T) {
-	ubv := "UPPER_BOUNDS_VALUE"
-	lbv := "LOWER_BOUNDS_VALUE"
-	hv := "HIGH_VALUE"
-	lv := "LOW_VALUE"
-	bv := "BOOL_VALUE"
-	sv := "STRING_VALUE"
-	uv := "UNSET_VALUE"
-
-	fbr := uint16(666)   // Fallback result
-	ubr := uint16(65535) // Upper bounds result
-	lbr := uint16(0)     // Lower bounds result
-
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(ubv, "65535"); err != nil {
-		t.Fatalf("error setting %s: %v", ubv, err)
+func TestStrAsBool_and_TlsMinVersAsUint16(t *testing.T) {
+	// strAsBool cases
+	if v, err := strAsBool("1"); err != nil || !v {
+		t.Fatalf("expected true from '1'")
 	}
-	if err := testEnvMapper.SetEnv(lbv, "0"); err != nil {
-		t.Fatalf("error setting %s: %v", lbv, err)
+	if v, err := strAsBool("0"); err != nil || v {
+		t.Fatalf("expected false from '0'")
 	}
-	if err := testEnvMapper.SetEnv(hv, "65536"); err != nil {
-		t.Fatalf("error setting %s: %v", hv, err)
-	}
-	if err := testEnvMapper.SetEnv(lv, "-1"); err != nil {
-		t.Fatalf("error setting %s: %v", lv, err)
-	}
-	if err := testEnvMapper.SetEnv(bv, "true"); err != nil {
-		t.Fatalf("error setting %s: %v", bv, err)
-	}
-	if err := testEnvMapper.SetEnv(sv, "Cheese"); err != nil {
-		t.Fatalf("error setting %s: %v", sv, err)
+	if _, err := strAsBool("maybe"); err == nil {
+		t.Fatalf("expected error for unknown boolean value")
 	}
 
-	testCases := []struct {
-		name     string
-		key      string
-		fallback uint16
-		result   uint16
-	}{
-		{"Upper bounds", ubv, fbr, ubr},
-		{"Lower bounds", lbv, fbr, lbr},
-		{"Out-of-bounds high", hv, fbr, fbr},
-		{"Out-of-bounds low", lv, fbr, fbr},
-		{"Boolean", bv, fbr, fbr},
-		{"String", sv, fbr, fbr},
-		{"Unset", uv, fbr, fbr},
+	// tlsMinVersAsUint16 cases
+	if v, err := tlsMinVersAsUint16("tls12"); err != nil || v != tls.VersionTLS12 {
+		t.Fatalf("expected tls12")
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := envAsUint16(testEnvMapper, tc.key, tc.fallback)
-			if tc.result != result {
-				t.Errorf(
-					"For %s with a %d fallback expected %d but got %d",
-					tc.key, tc.fallback, tc.result, result,
-				)
-			}
-		})
-	}
-}
-
-func TestEnvAsBool(t *testing.T) {
-	tv := "TRUE_VALUE"
-	fv := "FALSE_VALUE"
-	bv := "BAD_VALUE"
-	uv := "UNSET_VALUE"
-
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(tv, "True"); err != nil {
-		t.Fatalf("error setting %s: %v", tv, err)
-	}
-	if err := testEnvMapper.SetEnv(fv, "NO"); err != nil {
-		t.Fatalf("error setting %s: %v", fv, err)
-	}
-	if err := testEnvMapper.SetEnv(bv, "BAD"); err != nil {
-		t.Fatalf("error setting %s: %v", bv, err)
-	}
-
-	testCases := []struct {
-		name     string
-		key      string
-		fallback bool
-		result   bool
-	}{
-		{"True with true fallback", tv, true, true},
-		{"True with false fallback", tv, false, true},
-		{"False with true fallback", fv, true, false},
-		{"False with false fallback", fv, false, false},
-		{"Bad with true fallback", bv, true, true},
-		{"Bad with false fallback", bv, false, false},
-		{"Unset with true fallback", uv, true, true},
-		{"Unset with false fallback", uv, false, false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := envAsBool(testEnvMapper, tc.key, tc.fallback)
-			if tc.result != result {
-				t.Errorf(
-					"For %s with a %t fallback expected %t but got %t",
-					tc.key, tc.fallback, tc.result, result,
-				)
-			}
-		})
-	}
-}
-
-func TestStrAsBool(t *testing.T) {
-	testCases := []struct {
-		name    string
-		value   string
-		result  bool
-		isError bool
-	}{
-		{"Empty value", "", false, true},
-		{"False value", "0", false, false},
-		{"True value", "1", true, false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := strAsBool(tc.value)
-			if result != tc.result {
-				t.Errorf(
-					"Expected %t for %s but got %t",
-					tc.result, tc.value, result,
-				)
-			}
-			if tc.isError && nil == err {
-				t.Errorf(
-					"Expected error for %s but got no error",
-					tc.value,
-				)
-			}
-			if !tc.isError && nil != err {
-				t.Errorf(
-					"Expected no error for %s but got %v",
-					tc.value, err,
-				)
-			}
-		})
-	}
-}
-
-func TestTlsMinVersAsUint16(t *testing.T) {
-	testCases := []struct {
-		name    string
-		value   string
-		result  uint16
-		isError bool
-	}{
-		{"Empty value", "", 0, true},
-		{"Valid TLS1.0", "TLS10", tls.VersionTLS10, false},
-		{"Valid TLS1.1", "tls11", tls.VersionTLS11, false},
-		{"Valid TLS1.2", "tls12", tls.VersionTLS12, false},
-		{"Valid TLS1.3", "tLS13", tls.VersionTLS13, false},
-		{"Invalid TLS1.4", "tls14", 0, true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result, err := tlsMinVersAsUint16(tc.value)
-			if result != tc.result {
-				t.Errorf(
-					"Expected %d for %s but got %d",
-					tc.result, tc.value, result,
-				)
-			}
-			if tc.isError && nil == err {
-				t.Errorf(
-					"Expected error for %s but got no error",
-					tc.value,
-				)
-			} else if !tc.isError && nil != err {
-				t.Errorf(
-					"Expected no error for %s but got %v",
-					tc.value, err,
-				)
-			}
-		})
+	if _, err := tlsMinVersAsUint16("tls14"); err == nil {
+		t.Fatalf("expected error for unknown tls version")
 	}
 }

@@ -23,7 +23,7 @@ var (
 	runServerFunc   = server.Run
 	runHelpFunc     = help.Run
 	runVersionFunc  = version.Run
-	loadConfig      = config.Load
+	loadConfig      = config.LoadConfig
 )
 
 func init() {
@@ -83,12 +83,13 @@ func unknownArgs(args Args) func() error {
 	}
 }
 
-func withConfig(routine func() error) func() error {
+func withConfig(routine func(cfg *config.Config) error) func() error {
 	return func() error {
 		realEnvMapper := config.NewRealEnvMapper()
-		if err := loadConfig(option.configFile, realEnvMapper); err != nil {
+		cfg, err := loadConfig(option.configFile, realEnvMapper)
+		if err != nil {
 			return err
 		}
-		return routine()
+		return routine(cfg)
 	}
 }

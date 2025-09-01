@@ -55,10 +55,10 @@ func TestLoad(t *testing.T) {
 			err,
 		)
 	}
-	if Get.Folder != testDir {
+	if Target.Folder != testDir {
 		t.Errorf(
 			"While loading an empty file name expected folder %s but got %s",
-			testDir, Get.Folder,
+			testDir, Target.Folder,
 		)
 	}
 
@@ -113,7 +113,7 @@ func TestLoad(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	// Test whether YAML marshaling works, as that is the only error case.
-	if _, err := yaml.Marshal(&Get); nil != err {
+	if _, err := yaml.Marshal(&Target); nil != err {
 		t.Errorf("While testing YAML marshaling for config Log() got %v", err)
 	}
 	Log()
@@ -190,28 +190,28 @@ func TestOverrideWithEnvvars(t *testing.T) {
 	// Verify defaults.
 	setDefaults()
 	phase := "defaults"
-	equalBool(t, phase, debugKey, defaultDebug, Get.Debug)
-	equalStrings(t, phase, folderKey, defaultFolder, Get.Folder)
-	equalStrings(t, phase, hostKey, defaultHost, Get.Host)
-	equalUint16(t, phase, portKey, defaultPort, Get.Port)
-	equalBool(t, phase, showListingKey, defaultShowListing, Get.ShowListing)
-	equalStrings(t, phase, tlsCertKey, defaultTLSCert, Get.TLSCert)
-	equalStrings(t, phase, tlsKeyKey, defaultTLSKey, Get.TLSKey)
-	equalStrings(t, phase, urlPrefixKey, defaultURLPrefix, Get.URLPrefix)
+	equalBool(t, phase, debugKey, defaultDebug, Target.Debug)
+	equalStrings(t, phase, folderKey, defaultFolder, Target.Folder)
+	equalStrings(t, phase, hostKey, defaultHost, Target.Host)
+	equalUint16(t, phase, portKey, defaultPort, Target.Port)
+	equalBool(t, phase, showListingKey, defaultShowListing, Target.ShowListing)
+	equalStrings(t, phase, tlsCertKey, defaultTLSCert, Target.TLSCert)
+	equalStrings(t, phase, tlsKeyKey, defaultTLSKey, Target.TLSKey)
+	equalStrings(t, phase, urlPrefixKey, defaultURLPrefix, Target.URLPrefix)
 
 	// Apply overrides.
 	overrideWithEnvVars(testEnvMapper)
 
 	// Verify overrides.
 	phase = "overrides"
-	equalBool(t, phase, debugKey, testDebug, Get.Debug)
-	equalStrings(t, phase, folderKey, testFolder, Get.Folder)
-	equalStrings(t, phase, hostKey, testHost, Get.Host)
-	equalUint16(t, phase, portKey, testPort, Get.Port)
-	equalBool(t, phase, showListingKey, testShowListing, Get.ShowListing)
-	equalStrings(t, phase, tlsCertKey, testTLSCert, Get.TLSCert)
-	equalStrings(t, phase, tlsKeyKey, testTLSKey, Get.TLSKey)
-	equalStrings(t, phase, urlPrefixKey, testURLPrefix, Get.URLPrefix)
+	equalBool(t, phase, debugKey, testDebug, Target.Debug)
+	equalStrings(t, phase, folderKey, testFolder, Target.Folder)
+	equalStrings(t, phase, hostKey, testHost, Target.Host)
+	equalUint16(t, phase, portKey, testPort, Target.Port)
+	equalBool(t, phase, showListingKey, testShowListing, Target.ShowListing)
+	equalStrings(t, phase, tlsCertKey, testTLSCert, Target.TLSCert)
+	equalStrings(t, phase, tlsKeyKey, testTLSKey, Target.TLSKey)
+	equalStrings(t, phase, urlPrefixKey, testURLPrefix, Target.URLPrefix)
 }
 
 func TestValidate(t *testing.T) {
@@ -251,10 +251,10 @@ func TestValidate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			Get.TLSCert = tc.cert
-			Get.TLSKey = tc.key
-			Get.TLSMinVersStr = tc.minTLS
-			Get.URLPrefix = tc.prefix
+			Target.TLSCert = tc.cert
+			Target.TLSKey = tc.key
+			Target.TLSMinVersStr = tc.minTLS
+			Target.URLPrefix = tc.prefix
 			err := validate()
 			hasError := nil != err
 			if hasError && !tc.isError {

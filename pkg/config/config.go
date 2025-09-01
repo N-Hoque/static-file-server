@@ -13,44 +13,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-type EnvMapper interface {
-	GetEnv(key string) string
-	SetEnv(key, value string) error
-}
-
-type RealEnvMapper map[string]string
-
-func NewRealEnvMapper() EnvMapper {
-	m := make(RealEnvMapper)
-	// Populate the map with the current environment variables.
-	for _, env := range os.Environ() {
-		parts := strings.SplitN(env, "=", 2)
-		if len(parts) == 2 {
-			m[parts[0]] = parts[1]
-		}
-	}
-	return m
-}
-
-func (m RealEnvMapper) GetEnv(key string) string {
-	value, exists := m[key]
-	if !exists {
-		return ""
-	}
-	return value
-}
-
-func (m RealEnvMapper) SetEnv(key, value string) error {
-	if value == "" {
-		delete(m, key)
-	} else {
-		m[key] = value
-	}
-	return nil
-}
-
-// Get the desired configuration value.
-var Get struct {
+type Config struct {
 	Cors          bool     `yaml:"cors"`
 	Debug         bool     `yaml:"debug"`
 	Folder        string   `yaml:"folder"`
@@ -66,6 +29,8 @@ var Get struct {
 	Referrers     []string `yaml:"referrers"`
 	AccessKey     string   `yaml:"access-key"`
 }
+
+var Target Config
 
 const (
 	corsKey        = "CORS"
@@ -105,19 +70,19 @@ func init() {
 }
 
 func setDefaults() {
-	Get.Debug = defaultDebug
-	Get.Folder = defaultFolder
-	Get.Host = defaultHost
-	Get.Port = defaultPort
-	Get.Referrers = defaultReferrers
-	Get.AllowIndex = defaultAllowIndex
-	Get.ShowListing = defaultShowListing
-	Get.TLSCert = defaultTLSCert
-	Get.TLSKey = defaultTLSKey
-	Get.TLSMinVersStr = defaultTLSMinVers
-	Get.URLPrefix = defaultURLPrefix
-	Get.Cors = defaultCors
-	Get.AccessKey = defaultAccessKey
+	Target.Debug = defaultDebug
+	Target.Folder = defaultFolder
+	Target.Host = defaultHost
+	Target.Port = defaultPort
+	Target.Referrers = defaultReferrers
+	Target.AllowIndex = defaultAllowIndex
+	Target.ShowListing = defaultShowListing
+	Target.TLSCert = defaultTLSCert
+	Target.TLSKey = defaultTLSKey
+	Target.TLSMinVersStr = defaultTLSMinVers
+	Target.URLPrefix = defaultURLPrefix
+	Target.Cors = defaultCors
+	Target.AccessKey = defaultAccessKey
 }
 
 // Load the configuration file.
@@ -134,7 +99,7 @@ func Load(filename string, envMapper EnvMapper) error {
 	}
 	defer configFile.Close()
 
-	if err := yaml.NewDecoder(configFile).Decode(&Get); err != nil {
+	if err := yaml.NewDecoder(configFile).Decode(&Target); err != nil {
 		return err
 	}
 
@@ -146,7 +111,7 @@ func Load(filename string, envMapper EnvMapper) error {
 func Log() {
 	// YAML marshaling should never error, but if it could, the result is that
 	// the contents of the configuration are not logged.
-	contents, _ := yaml.Marshal(&Get)
+	contents, _ := yaml.Marshal(&Target)
 
 	// Log the configuration.
 	fmt.Println("Using the following configuration:")
@@ -156,79 +121,79 @@ func Log() {
 // overrideWithEnvVars the default values and the configuration file values.
 func overrideWithEnvVars(envMapper EnvMapper) {
 	// Assign envvars, if set.
-	Get.Cors = envAsBool(envMapper, corsKey, Get.Cors)
-	Get.Debug = envAsBool(envMapper, debugKey, Get.Debug)
-	Get.Folder = envAsStr(envMapper, folderKey, Get.Folder)
-	Get.Host = envAsStr(envMapper, hostKey, Get.Host)
-	Get.Port = envAsUint16(envMapper, portKey, Get.Port)
-	Get.AllowIndex = envAsBool(envMapper, allowIndexKey, Get.AllowIndex)
-	Get.ShowListing = envAsBool(envMapper, showListingKey, Get.ShowListing)
-	Get.TLSCert = envAsStr(envMapper, tlsCertKey, Get.TLSCert)
-	Get.TLSKey = envAsStr(envMapper, tlsKeyKey, Get.TLSKey)
-	Get.TLSMinVersStr = envAsStr(envMapper, tlsMinVersKey, Get.TLSMinVersStr)
-	Get.URLPrefix = envAsStr(envMapper, urlPrefixKey, Get.URLPrefix)
-	Get.Referrers = envAsStrSlice(envMapper, referrersKey, Get.Referrers)
-	Get.AccessKey = envAsStr(envMapper, accessKeyKey, Get.AccessKey)
+	Target.Cors = envAsBool(envMapper, corsKey, Target.Cors)
+	Target.Debug = envAsBool(envMapper, debugKey, Target.Debug)
+	Target.Folder = envAsStr(envMapper, folderKey, Target.Folder)
+	Target.Host = envAsStr(envMapper, hostKey, Target.Host)
+	Target.Port = envAsUint16(envMapper, portKey, Target.Port)
+	Target.AllowIndex = envAsBool(envMapper, allowIndexKey, Target.AllowIndex)
+	Target.ShowListing = envAsBool(envMapper, showListingKey, Target.ShowListing)
+	Target.TLSCert = envAsStr(envMapper, tlsCertKey, Target.TLSCert)
+	Target.TLSKey = envAsStr(envMapper, tlsKeyKey, Target.TLSKey)
+	Target.TLSMinVersStr = envAsStr(envMapper, tlsMinVersKey, Target.TLSMinVersStr)
+	Target.URLPrefix = envAsStr(envMapper, urlPrefixKey, Target.URLPrefix)
+	Target.Referrers = envAsStrSlice(envMapper, referrersKey, Target.Referrers)
+	Target.AccessKey = envAsStr(envMapper, accessKeyKey, Target.AccessKey)
 }
 
 // validate the configuration.
 func validate() error {
 	// If HTTPS is to be used, verify both TLS_* environment variables are set.
 	useTLS := false
-	if len(Get.TLSCert) > 0 || len(Get.TLSKey) > 0 {
-		if len(Get.TLSCert) == 0 || len(Get.TLSKey) == 0 {
+	if len(Target.TLSCert) > 0 || len(Target.TLSKey) > 0 {
+		if len(Target.TLSCert) == 0 || len(Target.TLSKey) == 0 {
 			msg := `if value for either 'TLS_CERT' or 'TLS_KEY' is set then
 				value for the other must also be set (values are
 				currently '%s' and '%s', respectively)`
-			return fmt.Errorf(msg, Get.TLSCert, Get.TLSKey)
+			return fmt.Errorf(msg, Target.TLSCert, Target.TLSKey)
 		}
-		if _, err := os.Stat(Get.TLSCert); nil != err {
+		if _, err := os.Stat(Target.TLSCert); nil != err {
 			msg := "value of TLS_CERT is set with filename '%s' that returns %v"
-			return fmt.Errorf(msg, Get.TLSCert, err)
+			return fmt.Errorf(msg, Target.TLSCert, err)
 		}
-		if _, err := os.Stat(Get.TLSKey); nil != err {
+		if _, err := os.Stat(Target.TLSKey); nil != err {
 			msg := "value of TLS_KEY is set with filename '%s' that returns %v"
-			return fmt.Errorf(msg, Get.TLSKey, err)
+			return fmt.Errorf(msg, Target.TLSKey, err)
 		}
 		useTLS = true
 	}
 
 	// Verify TLS_MIN_VERS is only (optionally) set if TLS is to be used.
-	Get.TLSMinVers = tls.VersionTLS10
+	Target.TLSMinVers = tls.VersionTLS10
 	if useTLS {
-		if len(Get.TLSMinVersStr) > 0 {
+		if len(Target.TLSMinVersStr) > 0 {
 			var err error
-			if Get.TLSMinVers, err = tlsMinVersAsUint16(Get.TLSMinVersStr); err != nil {
+			if Target.TLSMinVers, err = tlsMinVersAsUint16(Target.TLSMinVersStr); err != nil {
 				return err
 			}
 		}
 
 		// For logging minimum TLS version being used while debugging, backfill
 		// the TLSMinVersStr field.
-		switch Get.TLSMinVers {
+		switch Target.TLSMinVers {
 		case tls.VersionTLS10:
-			Get.TLSMinVersStr = "TLS1.0"
+			Target.TLSMinVersStr = "TLS1.0"
 		case tls.VersionTLS11:
-			Get.TLSMinVersStr = "TLS1.1"
+			Target.TLSMinVersStr = "TLS1.1"
 		case tls.VersionTLS12:
-			Get.TLSMinVersStr = "TLS1.2"
+			Target.TLSMinVersStr = "TLS1.2"
 		case tls.VersionTLS13:
-			Get.TLSMinVersStr = "TLS1.3"
+			Target.TLSMinVersStr = "TLS1.3"
 		}
 	} else {
-		if len(Get.TLSMinVersStr) > 0 {
+		if len(Target.TLSMinVersStr) > 0 {
 			msg := "value for 'TLS_MIN_VERS' is set but 'TLS_CERT' and 'TLS_KEY' are not"
 			return errors.New(msg)
 		}
 	}
 
 	// If the URL path prefix is to be used, verify it is properly formatted.
-	if len(Get.URLPrefix) > 0 &&
-		(!strings.HasPrefix(Get.URLPrefix, "/") || strings.HasSuffix(Get.URLPrefix, "/")) {
+	if len(Target.URLPrefix) > 0 &&
+		(!strings.HasPrefix(Target.URLPrefix, "/") || strings.HasSuffix(Target.URLPrefix, "/")) {
 		msg := `if value for 'URL_PREFIX' is set then the value must start
 			with '/' and not end with '/' (current value of '%s' vs valid
 			example of '/my/prefix')`
-		return fmt.Errorf(msg, Get.URLPrefix)
+		return fmt.Errorf(msg, Target.URLPrefix)
 	}
 
 	return nil

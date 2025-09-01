@@ -17,12 +17,12 @@ func TestRun(t *testing.T) {
 		}
 	}
 
-	config.Get.Debug = false
+	config.Target.Debug = false
 	if err := Run(); listenerError != err {
 		t.Errorf("Without debug expected %v but got %v", listenerError, err)
 	}
 
-	config.Get.Debug = true
+	config.Target.Debug = true
 	if err := Run(); listenerError != err {
 		t.Errorf("With debug expected %v but got %v", listenerError, err)
 	}
@@ -90,13 +90,13 @@ func TestHandlerSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config.Get.Debug = tc.debug
-			config.Get.Folder = tc.folder
-			config.Get.ShowListing = tc.listing
-			config.Get.URLPrefix = tc.prefix
-			config.Get.Referrers = tc.refer
-			config.Get.Cors = tc.cors
-			config.Get.AccessKey = tc.accessKey
+			config.Target.Debug = tc.debug
+			config.Target.Folder = tc.folder
+			config.Target.ShowListing = tc.listing
+			config.Target.URLPrefix = tc.prefix
+			config.Target.Referrers = tc.refer
+			config.Target.Cors = tc.cors
+			config.Target.AccessKey = tc.accessKey
 
 			handlerSelector()
 		})
@@ -119,8 +119,8 @@ func TestListenerSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config.Get.TLSCert = tc.cert
-			config.Get.TLSKey = tc.key
+			config.Target.TLSCert = tc.cert
+			config.Target.TLSKey = tc.key
 			listenerSelector()
 		})
 	}

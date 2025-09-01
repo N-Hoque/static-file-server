@@ -84,7 +84,7 @@ func TestExecuteAndSelection(t *testing.T) {
 		return runVersionFuncError
 	}
 	runServerFuncError := errors.New("server")
-	runServerFunc = func(*config.Config) error {
+	runServerFunc = func() error {
 		return runServerFuncError
 	}
 	unknownArgsFuncError := errors.New("unknown")
@@ -141,7 +141,7 @@ func TestUnknownArgs(t *testing.T) {
 func TestWithConfig(t *testing.T) {
 	configError := errors.New("config")
 	routineError := errors.New("routine")
-	routine := func(*config.Config) error { return routineError }
+	routine := func() error { return routineError }
 
 	testCases := []struct {
 		name       string
@@ -154,6 +154,7 @@ func TestWithConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			loadConfig = tc.loadConfig
 			errFunc := withConfig(routine)
 			if err := errFunc(); tc.result != err {
 				t.Errorf("Expected error %v but got %v", tc.result, err)

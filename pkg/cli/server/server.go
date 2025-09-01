@@ -15,68 +15,68 @@ var (
 )
 
 // Run server.
-func Run(cfg *config.Config) error {
-	if cfg.Debug {
-		cfg.Log()
+func Run() error {
+	if config.Get.Debug {
+		config.Log()
 	}
 	// Choose and set the appropriate, optimized static file serving function.
-	handler := selectHandler(cfg)
+	handler := selectHandler()
 
 	// Serve files over HTTP or HTTPS based on paths to TLS files being
 	// provided.
-	listener := selectListener(cfg)
+	listener := selectListener()
 
-	binding := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	binding := fmt.Sprintf("%s:%d", config.Get.Host, config.Get.Port)
 	return listener(binding, handler)
 }
 
 // handlerSelector returns the appropriate request handler based on
 // configuration.
-func handlerSelector(cfg *config.Config) http.HandlerFunc {
+func handlerSelector() http.HandlerFunc {
 	var (
 		handler          http.HandlerFunc
 		serveFileHandler handle.FileServerFunc
 	)
 
 	serveFileHandler = http.ServeFile
-	if cfg.Debug {
+	if config.Get.Debug {
 		serveFileHandler = handle.WithLogging(serveFileHandler)
 	}
 
-	if len(cfg.Referrers) > 0 {
+	if len(config.Get.Referrers) > 0 {
 		serveFileHandler = handle.WithReferrers(
-			serveFileHandler, cfg.Referrers...,
+			serveFileHandler, config.Get.Referrers...,
 		)
 	}
 
 	// Choose and set the appropriate, optimized static file serving function.
-	if len(cfg.URLPrefix) == 0 {
-		handler = handle.Basic(serveFileHandler, cfg.Folder)
+	if len(config.Get.URLPrefix) == 0 {
+		handler = handle.Basic(serveFileHandler, config.Get.Folder)
 	} else {
 		handler = handle.Prefix(
 			serveFileHandler,
-			cfg.Folder,
-			cfg.URLPrefix,
+			config.Get.Folder,
+			config.Get.URLPrefix,
 		)
 	}
 
 	// Determine whether index files should hidden.
-	if !cfg.ShowListing {
-		if cfg.AllowIndex {
-			handler = handle.PreventListings(handler, cfg.Folder, cfg.URLPrefix)
+	if !config.Get.ShowListing {
+		if config.Get.AllowIndex {
+			handler = handle.PreventListings(handler, config.Get.Folder, config.Get.URLPrefix)
 		} else {
 			handler = handle.IgnoreIndex(handler)
 		}
 	}
 
 	// If configured, apply wildcard CORS support.
-	if cfg.Cors {
+	if config.Get.Cors {
 		handler = handle.AddCorsWildcardHeaders(handler)
 	}
 
 	// If configured, apply key code access control.
-	if len(cfg.AccessKey) > 0 {
-		handler = handle.AddAccessKey(handler, cfg.AccessKey)
+	if len(config.Get.AccessKey) > 0 {
+		handler = handle.AddAccessKey(handler, config.Get.AccessKey)
 	}
 
 	return handler
@@ -84,14 +84,14 @@ func handlerSelector(cfg *config.Config) http.HandlerFunc {
 
 // listenerSelector serves files over HTTP or HTTPS
 // based on paths to TLS files being provided
-func listenerSelector(cfg *config.Config) handle.ListenerFunc {
-	if len(cfg.TLSCert) == 0 {
+func listenerSelector() handle.ListenerFunc {
+	if len(config.Get.TLSCert) == 0 {
 		return handle.Listening()
 	}
 
-	handle.SetMinimumTLSVersion(cfg.TLSMinVers)
+	handle.SetMinimumTLSVersion(config.Get.TLSMinVers)
 	return handle.TLSListening(
-		cfg.TLSCert,
-		cfg.TLSKey,
+		config.Get.TLSCert,
+		config.Get.TLSKey,
 	)
 }

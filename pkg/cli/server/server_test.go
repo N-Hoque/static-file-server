@@ -10,22 +10,20 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	cfg := config.NewDefaultConfig()
-
 	listenerError := errors.New("listener")
-	selectListener = func(*config.Config) handle.ListenerFunc {
+	selectListener = func() handle.ListenerFunc {
 		return func(string, http.HandlerFunc) error {
 			return listenerError
 		}
 	}
 
-	cfg.Debug = false
-	if err := Run(cfg); listenerError != err {
+	config.Get.Debug = false
+	if err := Run(); listenerError != err {
 		t.Errorf("Without debug expected %v but got %v", listenerError, err)
 	}
 
-	cfg.Debug = true
-	if err := Run(cfg); listenerError != err {
+	config.Get.Debug = true
+	if err := Run(); listenerError != err {
 		t.Errorf("With debug expected %v but got %v", listenerError, err)
 	}
 }
@@ -37,8 +35,6 @@ func TestHandlerSelector(t *testing.T) {
 	var ignoreReferrer []string
 	testReferrer := []string{"http://localhost"}
 	testAccessKey := "access-key"
-
-	cfg := config.NewDefaultConfig()
 
 	testCases := []struct {
 		name      string
@@ -94,15 +90,15 @@ func TestHandlerSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg.Debug = tc.debug
-			cfg.Folder = tc.folder
-			cfg.ShowListing = tc.listing
-			cfg.URLPrefix = tc.prefix
-			cfg.Referrers = tc.refer
-			cfg.Cors = tc.cors
-			cfg.AccessKey = tc.accessKey
+			config.Get.Debug = tc.debug
+			config.Get.Folder = tc.folder
+			config.Get.ShowListing = tc.listing
+			config.Get.URLPrefix = tc.prefix
+			config.Get.Referrers = tc.refer
+			config.Get.Cors = tc.cors
+			config.Get.AccessKey = tc.accessKey
 
-			handlerSelector(cfg)
+			handlerSelector()
 		})
 	}
 }
@@ -111,8 +107,6 @@ func TestListenerSelector(t *testing.T) {
 	// This test only exercises function branches.
 	testCert := "file.crt"
 	testKey := "file.key"
-
-	cfg := config.NewDefaultConfig()
 
 	testCases := []struct {
 		name string
@@ -125,9 +119,9 @@ func TestListenerSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg.TLSCert = tc.cert
-			cfg.TLSKey = tc.key
-			listenerSelector(cfg)
+			config.Get.TLSCert = tc.cert
+			config.Get.TLSKey = tc.key
+			listenerSelector()
 		})
 	}
 }

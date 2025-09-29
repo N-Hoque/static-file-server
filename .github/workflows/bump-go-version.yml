@@ -19,7 +19,7 @@ jobs:
       # 1) Install latest STABLE Go on the runner
       - name: Setup Go (stable)
         id: setup
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: stable
           check-latest: true

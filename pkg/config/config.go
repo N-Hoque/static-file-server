@@ -260,34 +260,32 @@ func envAsBool(envMapper EnvMapper, key string, fallback bool) bool {
 
 // strAsBool converts the intent of the passed value into a boolean
 // representation.
-func strAsBool(value string) (result bool, err error) {
+func strAsBool(value string) (bool, error) {
 	switch strings.ToLower(value) {
 	case "0", "false", "f", "no", "n":
-		result = false
+		return false, nil
 	case "1", "true", "t", "yes", "y":
-		result = true
+		return true, nil
 	default:
-		result = false
 		msg := "unknown conversion from string to bool for value '%s'"
-		err = fmt.Errorf(msg, value)
+		err := fmt.Errorf(msg, value)
+		return false, err
 	}
-	return
 }
 
 // tlsMinVersAsUint16 converts the intent of the passed value into an
 // enumeration for the crypto/tls package.
-func tlsMinVersAsUint16(value string) (result uint16, err error) {
+func tlsMinVersAsUint16(value string) (uint16, error) {
 	switch strings.ToLower(value) {
 	case "tls10":
-		result = tls.VersionTLS10
+		return tls.VersionTLS10, nil
 	case "tls11":
-		result = tls.VersionTLS11
+		return tls.VersionTLS11, nil
 	case "tls12":
-		result = tls.VersionTLS12
+		return tls.VersionTLS12, nil
 	case "tls13":
-		result = tls.VersionTLS13
+		return tls.VersionTLS13, nil
 	default:
-		err = fmt.Errorf("unknown value for TLS_MIN_VERS: %s", value)
+		return 0, fmt.Errorf("unknown value for TLS_MIN_VERS: %s", value)
 	}
-	return
 }

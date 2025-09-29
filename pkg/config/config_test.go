@@ -261,7 +261,7 @@ func TestValidate(t *testing.T) {
 			config.TLSKey = tc.key
 			config.TLSMinVersStr = tc.minTLS
 			config.URLPrefix = tc.prefix
-			config, err := validate(config)
+			_, err := validate(config)
 			hasError := nil != err
 			if hasError && !tc.isError {
 				t.Errorf("Expected no error but got %v", err)

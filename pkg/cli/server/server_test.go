@@ -11,19 +11,20 @@ import (
 
 func TestRun(t *testing.T) {
 	listenerError := errors.New("listener")
-	selectListener = func() handle.ListenerFunc {
+	selectListener = func(*config.Config) handle.ListenerFunc {
 		return func(string, http.HandlerFunc) error {
 			return listenerError
 		}
 	}
 
-	config.Get.Debug = false
-	if err := Run(); listenerError != err {
+	testConfig := config.New()
+	testConfig.Debug = false
+	if err := Run(testConfig); listenerError != err {
 		t.Errorf("Without debug expected %v but got %v", listenerError, err)
 	}
 
-	config.Get.Debug = true
-	if err := Run(); listenerError != err {
+	testConfig.Debug = true
+	if err := Run(testConfig); listenerError != err {
 		t.Errorf("With debug expected %v but got %v", listenerError, err)
 	}
 }
@@ -90,15 +91,16 @@ func TestHandlerSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config.Get.Debug = tc.debug
-			config.Get.Folder = tc.folder
-			config.Get.ShowListing = tc.listing
-			config.Get.URLPrefix = tc.prefix
-			config.Get.Referrers = tc.refer
-			config.Get.Cors = tc.cors
-			config.Get.AccessKey = tc.accessKey
+			testConfig := config.New()
+			testConfig.Debug = tc.debug
+			testConfig.Folder = tc.folder
+			testConfig.ShowListing = tc.listing
+			testConfig.URLPrefix = tc.prefix
+			testConfig.Referrers = tc.refer
+			testConfig.Cors = tc.cors
+			testConfig.AccessKey = tc.accessKey
 
-			handlerSelector()
+			handlerSelector(testConfig)
 		})
 	}
 }
@@ -119,9 +121,10 @@ func TestListenerSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			config.Get.TLSCert = tc.cert
-			config.Get.TLSKey = tc.key
-			listenerSelector()
+			testConfig := config.New()
+			testConfig.TLSCert = tc.cert
+			testConfig.TLSKey = tc.key
+			listenerSelector(testConfig)
 		})
 	}
 }

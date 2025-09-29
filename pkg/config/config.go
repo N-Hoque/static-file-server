@@ -30,7 +30,23 @@ type Config struct {
 	AccessKey     string   `yaml:"access-key"`
 }
 
-var Target Config
+func New() *Config {
+	return &Config{
+		Debug:         defaultDebug,
+		Folder:        defaultFolder,
+		Host:          defaultHost,
+		Port:          defaultPort,
+		Referrers:     defaultReferrers,
+		AllowIndex:    defaultAllowIndex,
+		ShowListing:   defaultShowListing,
+		TLSCert:       defaultTLSCert,
+		TLSKey:        defaultTLSKey,
+		TLSMinVersStr: defaultTLSMinVers,
+		URLPrefix:     defaultURLPrefix,
+		Cors:          defaultCors,
+		AccessKey:     defaultAccessKey,
+	}
+}
 
 const (
 	corsKey        = "CORS"
@@ -64,54 +80,35 @@ var (
 	defaultAccessKey   = ""
 )
 
-func init() {
-	// init calls setDefaults to better support testing.
-	setDefaults()
-}
-
-func setDefaults() {
-	Target.Debug = defaultDebug
-	Target.Folder = defaultFolder
-	Target.Host = defaultHost
-	Target.Port = defaultPort
-	Target.Referrers = defaultReferrers
-	Target.AllowIndex = defaultAllowIndex
-	Target.ShowListing = defaultShowListing
-	Target.TLSCert = defaultTLSCert
-	Target.TLSKey = defaultTLSKey
-	Target.TLSMinVersStr = defaultTLSMinVers
-	Target.URLPrefix = defaultURLPrefix
-	Target.Cors = defaultCors
-	Target.AccessKey = defaultAccessKey
-}
-
 // Load the configuration file.
-func Load(filename string, envMapper EnvMapper) error {
+func Load(filename string, envMapper EnvMapper) (*Config, error) {
 	// If no filename provided, assign envvars.
 	if filename == "" {
-		overrideWithEnvVars(envMapper)
-		return validate()
+		config := New()
+		overrideWithEnvVars(envMapper, config)
+		return validate(config)
 	}
 
 	configFile, err := os.Open(filepath.Clean(filename))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer configFile.Close()
 
-	if err := yaml.NewDecoder(configFile).Decode(&Target); err != nil {
-		return err
+	var config Config
+	if err := yaml.NewDecoder(configFile).Decode(&config); err != nil {
+		return nil, err
 	}
 
-	overrideWithEnvVars(envMapper)
-	return validate()
+	overrideWithEnvVars(envMapper, &config)
+	return validate(&config)
 }
 
 // Log the current configuration.
-func Log() {
+func Log(config *Config) {
 	// YAML marshaling should never error, but if it could, the result is that
 	// the contents of the configuration are not logged.
-	contents, _ := yaml.Marshal(&Target)
+	contents, _ := yaml.Marshal(&config)
 
 	// Log the configuration.
 	fmt.Println("Using the following configuration:")
@@ -119,84 +116,84 @@ func Log() {
 }
 
 // overrideWithEnvVars the default values and the configuration file values.
-func overrideWithEnvVars(envMapper EnvMapper) {
+func overrideWithEnvVars(envMapper EnvMapper, config *Config) {
 	// Assign envvars, if set.
-	Target.Cors = envAsBool(envMapper, corsKey, Target.Cors)
-	Target.Debug = envAsBool(envMapper, debugKey, Target.Debug)
-	Target.Folder = envAsStr(envMapper, folderKey, Target.Folder)
-	Target.Host = envAsStr(envMapper, hostKey, Target.Host)
-	Target.Port = envAsUint16(envMapper, portKey, Target.Port)
-	Target.AllowIndex = envAsBool(envMapper, allowIndexKey, Target.AllowIndex)
-	Target.ShowListing = envAsBool(envMapper, showListingKey, Target.ShowListing)
-	Target.TLSCert = envAsStr(envMapper, tlsCertKey, Target.TLSCert)
-	Target.TLSKey = envAsStr(envMapper, tlsKeyKey, Target.TLSKey)
-	Target.TLSMinVersStr = envAsStr(envMapper, tlsMinVersKey, Target.TLSMinVersStr)
-	Target.URLPrefix = envAsStr(envMapper, urlPrefixKey, Target.URLPrefix)
-	Target.Referrers = envAsStrSlice(envMapper, referrersKey, Target.Referrers)
-	Target.AccessKey = envAsStr(envMapper, accessKeyKey, Target.AccessKey)
+	config.Cors = envAsBool(envMapper, corsKey, config.Cors)
+	config.Debug = envAsBool(envMapper, debugKey, config.Debug)
+	config.Folder = envAsStr(envMapper, folderKey, config.Folder)
+	config.Host = envAsStr(envMapper, hostKey, config.Host)
+	config.Port = envAsUint16(envMapper, portKey, config.Port)
+	config.AllowIndex = envAsBool(envMapper, allowIndexKey, config.AllowIndex)
+	config.ShowListing = envAsBool(envMapper, showListingKey, config.ShowListing)
+	config.TLSCert = envAsStr(envMapper, tlsCertKey, config.TLSCert)
+	config.TLSKey = envAsStr(envMapper, tlsKeyKey, config.TLSKey)
+	config.TLSMinVersStr = envAsStr(envMapper, tlsMinVersKey, config.TLSMinVersStr)
+	config.URLPrefix = envAsStr(envMapper, urlPrefixKey, config.URLPrefix)
+	config.Referrers = envAsStrSlice(envMapper, referrersKey, config.Referrers)
+	config.AccessKey = envAsStr(envMapper, accessKeyKey, config.AccessKey)
 }
 
 // validate the configuration.
-func validate() error {
+func validate(config *Config) (*Config, error) {
 	// If HTTPS is to be used, verify both TLS_* environment variables are set.
 	useTLS := false
-	if len(Target.TLSCert) > 0 || len(Target.TLSKey) > 0 {
-		if len(Target.TLSCert) == 0 || len(Target.TLSKey) == 0 {
+	if len(config.TLSCert) > 0 || len(config.TLSKey) > 0 {
+		if len(config.TLSCert) == 0 || len(config.TLSKey) == 0 {
 			msg := `if value for either 'TLS_CERT' or 'TLS_KEY' is set then
 				value for the other must also be set (values are
 				currently '%s' and '%s', respectively)`
-			return fmt.Errorf(msg, Target.TLSCert, Target.TLSKey)
+			return nil, fmt.Errorf(msg, config.TLSCert, config.TLSKey)
 		}
-		if _, err := os.Stat(Target.TLSCert); nil != err {
+		if _, err := os.Stat(config.TLSCert); nil != err {
 			msg := "value of TLS_CERT is set with filename '%s' that returns %v"
-			return fmt.Errorf(msg, Target.TLSCert, err)
+			return nil, fmt.Errorf(msg, config.TLSCert, err)
 		}
-		if _, err := os.Stat(Target.TLSKey); nil != err {
+		if _, err := os.Stat(config.TLSKey); nil != err {
 			msg := "value of TLS_KEY is set with filename '%s' that returns %v"
-			return fmt.Errorf(msg, Target.TLSKey, err)
+			return nil, fmt.Errorf(msg, config.TLSKey, err)
 		}
 		useTLS = true
 	}
 
 	// Verify TLS_MIN_VERS is only (optionally) set if TLS is to be used.
-	Target.TLSMinVers = tls.VersionTLS10
+	config.TLSMinVers = tls.VersionTLS10
 	if useTLS {
-		if len(Target.TLSMinVersStr) > 0 {
+		if len(config.TLSMinVersStr) > 0 {
 			var err error
-			if Target.TLSMinVers, err = tlsMinVersAsUint16(Target.TLSMinVersStr); err != nil {
-				return err
+			if config.TLSMinVers, err = tlsMinVersAsUint16(config.TLSMinVersStr); err != nil {
+				return nil, err
 			}
 		}
 
 		// For logging minimum TLS version being used while debugging, backfill
 		// the TLSMinVersStr field.
-		switch Target.TLSMinVers {
+		switch config.TLSMinVers {
 		case tls.VersionTLS10:
-			Target.TLSMinVersStr = "TLS1.0"
+			config.TLSMinVersStr = "TLS1.0"
 		case tls.VersionTLS11:
-			Target.TLSMinVersStr = "TLS1.1"
+			config.TLSMinVersStr = "TLS1.1"
 		case tls.VersionTLS12:
-			Target.TLSMinVersStr = "TLS1.2"
+			config.TLSMinVersStr = "TLS1.2"
 		case tls.VersionTLS13:
-			Target.TLSMinVersStr = "TLS1.3"
+			config.TLSMinVersStr = "TLS1.3"
 		}
 	} else {
-		if len(Target.TLSMinVersStr) > 0 {
+		if len(config.TLSMinVersStr) > 0 {
 			msg := "value for 'TLS_MIN_VERS' is set but 'TLS_CERT' and 'TLS_KEY' are not"
-			return errors.New(msg)
+			return nil, errors.New(msg)
 		}
 	}
 
 	// If the URL path prefix is to be used, verify it is properly formatted.
-	if len(Target.URLPrefix) > 0 &&
-		(!strings.HasPrefix(Target.URLPrefix, "/") || strings.HasSuffix(Target.URLPrefix, "/")) {
+	if len(config.URLPrefix) > 0 &&
+		(!strings.HasPrefix(config.URLPrefix, "/") || strings.HasSuffix(config.URLPrefix, "/")) {
 		msg := `if value for 'URL_PREFIX' is set then the value must start
 			with '/' and not end with '/' (current value of '%s' vs valid
 			example of '/my/prefix')`
-		return fmt.Errorf(msg, Target.URLPrefix)
+		return nil, fmt.Errorf(msg, config.URLPrefix)
 	}
 
-	return nil
+	return config, nil
 }
 
 // envAsStr returns the value of the environment variable as a string if set.

@@ -84,7 +84,7 @@ func TestExecuteAndSelection(t *testing.T) {
 		return runVersionFuncError
 	}
 	runServerFuncError := errors.New("server")
-	runServerFunc = func() error {
+	runServerFunc = func(*config.Config) error {
 		return runServerFuncError
 	}
 	unknownArgsFuncError := errors.New("unknown")
@@ -141,15 +141,15 @@ func TestUnknownArgs(t *testing.T) {
 func TestWithConfig(t *testing.T) {
 	configError := errors.New("config")
 	routineError := errors.New("routine")
-	routine := func() error { return routineError }
+	routine := func(*config.Config) error { return routineError }
 
 	testCases := []struct {
 		name       string
-		loadConfig func(string, config.EnvMapper) error
+		loadConfig func(string, config.EnvMapper) (*config.Config, error)
 		result     error
 	}{
-		{"Config error", func(string, config.EnvMapper) error { return configError }, configError},
-		{"Routine error", func(string, config.EnvMapper) error { return nil }, routineError},
+		{"Config error", func(string, config.EnvMapper) (*config.Config, error) { return nil, configError }, configError},
+		{"Routine error", func(string, config.EnvMapper) (*config.Config, error) { return config.New(), nil }, routineError},
 	}
 
 	for _, tc := range testCases {

@@ -83,12 +83,13 @@ func unknownArgs(args Args) func() error {
 	}
 }
 
-func withConfig(routine func() error) func() error {
+func withConfig(routine func(*config.Config) error) func() error {
 	return func() error {
 		realEnvMapper := config.NewRealEnvMapper()
-		if err := loadConfig(option.configFile, realEnvMapper); err != nil {
+		config, err := loadConfig(option.configFile, realEnvMapper)
+		if err != nil {
 			return err
 		}
-		return routine()
+		return routine(config)
 	}
 }

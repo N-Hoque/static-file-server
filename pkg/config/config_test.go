@@ -49,21 +49,23 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("failed to set env %s: %v", folderKey, err)
 	}
 
-	if err := Load("", testEnvMapper); err != nil {
+	config, err := Load("", testEnvMapper)
+	if err != nil {
 		t.Errorf(
 			"While loading an empty file name expected no error but got %v",
 			err,
 		)
 	}
-	if Target.Folder != testDir {
+	if config.Folder != testDir {
 		t.Errorf(
 			"While loading an empty file name expected folder %s but got %s",
-			testDir, Target.Folder,
+			testDir, config.Folder,
 		)
 	}
 
 	// Verify error if file doesn't exist.
-	if err := Load("/this/file/should/never/exist", testEnvMapper); err == nil {
+	config, err = Load("/this/file/should/never/exist", testEnvMapper)
+	if err == nil {
 		t.Error("While loading non-existing file expected error but got nil")
 	}
 
@@ -79,7 +81,8 @@ func TestLoad(t *testing.T) {
 		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
 			t.Errorf("Failed to save bad YAML file with: %v\n", err)
 		}
-		if err := Load(tempfile.Name(), testEnvMapper); err == nil {
+		config, err = Load(tempfile.Name(), testEnvMapper)
+		if err == nil {
 			t.Error("While loading bad YAML expected error but got nil")
 		}
 	}(t)
@@ -102,7 +105,8 @@ func TestLoad(t *testing.T) {
 		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
 			t.Errorf("Failed to save good YAML file with: %v\n", err)
 		}
-		if err := Load(tempfile.Name(), testEnvMapper); err != nil {
+		config, err = Load(tempfile.Name(), testEnvMapper)
+		if err != nil {
 			t.Errorf(
 				"While loading good YAML expected nil but got %v",
 				err,
@@ -113,10 +117,11 @@ func TestLoad(t *testing.T) {
 
 func TestLog(t *testing.T) {
 	// Test whether YAML marshaling works, as that is the only error case.
-	if _, err := yaml.Marshal(&Target); nil != err {
+	config := New()
+	if _, err := yaml.Marshal(&config); nil != err {
 		t.Errorf("While testing YAML marshaling for config Log() got %v", err)
 	}
-	Log()
+	Log(config)
 }
 
 func TestOverrideWithEnvvars(t *testing.T) {
@@ -188,30 +193,30 @@ func TestOverrideWithEnvvars(t *testing.T) {
 	}
 
 	// Verify defaults.
-	setDefaults()
+	config := New()
 	phase := "defaults"
-	equalBool(t, phase, debugKey, defaultDebug, Target.Debug)
-	equalStrings(t, phase, folderKey, defaultFolder, Target.Folder)
-	equalStrings(t, phase, hostKey, defaultHost, Target.Host)
-	equalUint16(t, phase, portKey, defaultPort, Target.Port)
-	equalBool(t, phase, showListingKey, defaultShowListing, Target.ShowListing)
-	equalStrings(t, phase, tlsCertKey, defaultTLSCert, Target.TLSCert)
-	equalStrings(t, phase, tlsKeyKey, defaultTLSKey, Target.TLSKey)
-	equalStrings(t, phase, urlPrefixKey, defaultURLPrefix, Target.URLPrefix)
+	equalBool(t, phase, debugKey, defaultDebug, config.Debug)
+	equalStrings(t, phase, folderKey, defaultFolder, config.Folder)
+	equalStrings(t, phase, hostKey, defaultHost, config.Host)
+	equalUint16(t, phase, portKey, defaultPort, config.Port)
+	equalBool(t, phase, showListingKey, defaultShowListing, config.ShowListing)
+	equalStrings(t, phase, tlsCertKey, defaultTLSCert, config.TLSCert)
+	equalStrings(t, phase, tlsKeyKey, defaultTLSKey, config.TLSKey)
+	equalStrings(t, phase, urlPrefixKey, defaultURLPrefix, config.URLPrefix)
 
 	// Apply overrides.
-	overrideWithEnvVars(testEnvMapper)
+	overrideWithEnvVars(testEnvMapper, config)
 
 	// Verify overrides.
 	phase = "overrides"
-	equalBool(t, phase, debugKey, testDebug, Target.Debug)
-	equalStrings(t, phase, folderKey, testFolder, Target.Folder)
-	equalStrings(t, phase, hostKey, testHost, Target.Host)
-	equalUint16(t, phase, portKey, testPort, Target.Port)
-	equalBool(t, phase, showListingKey, testShowListing, Target.ShowListing)
-	equalStrings(t, phase, tlsCertKey, testTLSCert, Target.TLSCert)
-	equalStrings(t, phase, tlsKeyKey, testTLSKey, Target.TLSKey)
-	equalStrings(t, phase, urlPrefixKey, testURLPrefix, Target.URLPrefix)
+	equalBool(t, phase, debugKey, testDebug, config.Debug)
+	equalStrings(t, phase, folderKey, testFolder, config.Folder)
+	equalStrings(t, phase, hostKey, testHost, config.Host)
+	equalUint16(t, phase, portKey, testPort, config.Port)
+	equalBool(t, phase, showListingKey, testShowListing, config.ShowListing)
+	equalStrings(t, phase, tlsCertKey, testTLSCert, config.TLSCert)
+	equalStrings(t, phase, tlsKeyKey, testTLSKey, config.TLSKey)
+	equalStrings(t, phase, urlPrefixKey, testURLPrefix, config.URLPrefix)
 }
 
 func TestValidate(t *testing.T) {
@@ -251,11 +256,12 @@ func TestValidate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			Target.TLSCert = tc.cert
-			Target.TLSKey = tc.key
-			Target.TLSMinVersStr = tc.minTLS
-			Target.URLPrefix = tc.prefix
-			err := validate()
+			config := New()
+			config.TLSCert = tc.cert
+			config.TLSKey = tc.key
+			config.TLSMinVersStr = tc.minTLS
+			config.URLPrefix = tc.prefix
+			config, err := validate(config)
 			hasError := nil != err
 			if hasError && !tc.isError {
 				t.Errorf("Expected no error but got %v", err)

@@ -71,16 +71,16 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func setup() (err error) {
+func setup() error {
 	for filename, contents := range files {
-		if err = os.MkdirAll(path.Dir(filename), 0o700); nil != err {
-			return
+		if err := os.MkdirAll(path.Dir(filename), 0o700); err != nil {
+			return err
 		}
-		if err = os.WriteFile(filename, []byte(contents), 0o600); nil != err {
-			return
+		if err := os.WriteFile(filename, []byte(contents), 0o600); err != nil {
+			return err
 		}
 	}
-	return
+	return nil
 }
 
 func teardown() (err error) {

@@ -40,6 +40,6 @@ oci_image(
 oci_push(
     name = "push",
     image = ":serve_image",
-    ref = "{STABLE_DOCKER_REPO}:{STABLE_DOCKER_TAG}",
-    stamp = True,
+    remote_tags = ["latest"],
+    repository = "index.docker.io/nhoque/static-file-server",
 )

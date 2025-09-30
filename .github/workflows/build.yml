@@ -23,6 +23,9 @@ jobs:
               - '**/*.go'
               - 'go.mod'
               - 'go.sum'
+              - 'MODULE.bazel'
+              - '**/*.bzl'
+              - '**/BUILD.bazel'
 
   lint:
     name: Lint (golangci-lint)
@@ -31,17 +34,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-
       - uses: actions/setup-go@v6
         with:
           go-version: stable
           check-latest: true
           cache: true
-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: latest # or 'latest' to always use newest
+          version: latest
           args: --timeout=5m
 
   coverage:
@@ -49,65 +50,111 @@ jobs:
     runs-on: ubuntu-latest
     needs: [check]
     if: ${{ needs.check.outputs.go == 'true' }}
+    continue-on-error: true
+    env:
+      BAZELISK_EXTRA_FLAGS: >-
+        --repository_cache=${{ github.workspace }}/bazel-repo
+        --disk_cache=${{ github.workspace }}/bazel-disk
+        --color=yes
+        --show_timestamps
+        --announce_rc
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+      - name: Cache Bazel repo+disk cache
+        uses: actions/cache@v4
         with:
-          go-version: stable
-          check-latest: true
-          cache: true
-      - name: Run coverage
-        run: go test -cover ./...
-        continue-on-error: true
+          path: |
+            ${{ github.workspace }}/bazel-repo
+            ${{ github.workspace }}/bazel-disk
+          key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '**/*.bzl', '**/BUILD.bazel', 'go.mod', 'go.sum') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+      - name: Coverage
+        run: |
+          bazel coverage //... --combined_report=lcov || true
 
   test:
     name: Test (unit tests)
     runs-on: ubuntu-latest
     needs: [check]
     if: ${{ needs.check.outputs.go == 'true' }}
+    env:
+      BAZELISK_EXTRA_FLAGS: >-
+        --repository_cache=${{ github.workspace }}/bazel-repo
+        --disk_cache=${{ github.workspace }}/bazel-disk
+        --color=yes
+        --show_timestamps
+        --announce_rc
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+      - name: Cache Bazel repo+disk cache
+        uses: actions/cache@v4
         with:
-          go-version: stable
-          check-latest: true
-          cache: true
-      - name: Run tests
-        run: go test -race -count=1 ./...
+          path: |
+            ${{ github.workspace }}/bazel-repo
+            ${{ github.workspace }}/bazel-disk
+          key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '**/*.bzl', '**/BUILD.bazel', 'go.mod', 'go.sum') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+      - name: Test
+        run: |
+          bazel test //... --test_output=errors
 
   build:
     name: Build
-    runs-on: ubuntu-latest
     needs: [lint, test]
+    runs-on: ${{ matrix.os }}
     outputs:
       built: ${{ steps.flag.outputs.built }}
     strategy:
       fail-fast: false
       matrix:
-        goos: [linux, windows, darwin]
-        goarch: [amd64, arm64]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        arch: [amd64, arm64]
         exclude:
-          - goos: windows
-            goarch: arm64
+          - os: windows-latest
+            arch: arm64
+    env:
+      BAZELISK_EXTRA_FLAGS: >-
+        --repository_cache=${{ github.workspace }}/bazel-repo
+        --disk_cache=${{ github.workspace }}/bazel-disk
+        --color=yes
+        --show_timestamps
+        --announce_rc
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-go@v6
+      - name: Setup Bazelisk
+        uses: bazelbuild/setup-bazelisk@v3
+      - name: Cache Bazel repo+disk cache
+        uses: actions/cache@v4
         with:
-          go-version: stable
-          check-latest: true
-          cache: true
-      - name: Compile
-        env:
-          APP: static-file-server
-          CGO_ENABLED: 0
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
+          path: |
+            ${{ github.workspace }}/bazel-repo
+            ${{ github.workspace }}/bazel-disk
+          key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '**/*.bzl', '**/BUILD.bazel', 'go.mod', 'go.sum') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+      - name: Build binary with Bazel
         shell: bash
         run: |
-          EXT=""
-          [ "${{ matrix.goos }}" = "windows" ] && EXT=".exe"
-          mkdir -p dist
-          go build -trimpath -o "dist/${APP}_${{ matrix.goos }}_${{ matrix.goarch }}${EXT}" .
+          # Map matrix to rules_go platform label
+          case "${{ matrix.os }}:${{ matrix.arch }}" in
+            ubuntu-latest:amd64)  PLATFORM="linux_amd64" ;;
+            ubuntu-latest:arm64)  PLATFORM="linux_arm64" ;;
+            macos-latest:amd64)   PLATFORM="darwin_amd64" ;;
+            macos-latest:arm64)   PLATFORM="darwin_arm64" ;;
+            windows-latest:amd64) PLATFORM="windows_amd64" ;;
+            *) echo "Unsupported os/arch"; exit 1 ;;
+          esac
+
+          bazel build //:serve --platforms=@io_bazel_rules_go//go/toolchain:${PLATFORM}
+
+          # Optional: show where the binary ended up
+          bazel cquery //:serve --output=files || true
       - name: Mark workflow as built
         id: flag
         run: echo "built=true" >> "$GITHUB_OUTPUT"

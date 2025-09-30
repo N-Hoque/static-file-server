@@ -15,45 +15,79 @@ jobs:
     uses: ./.github/workflows/build.yml
 
   publish:
-    name: Publish
+    name: Publish (rules_oci)
     runs-on: ubuntu-latest
     environment: "Push Image"
     needs: [build]
     if: ${{ needs.build.outputs.did_build == 'true' }}
+    env:
+      BAZELISK_EXTRA_FLAGS: >-
+        --repository_cache=${{ github.workspace }}/bazel-repo
+        --disk_cache=${{ github.workspace }}/bazel-disk
     steps:
       - uses: actions/checkout@v5
 
-      - name: Create Docker Metadata
+      - name: Compute image repo + tags (mirror docker/metadata-action behavior)
         id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ vars.DOCKER_IMAGE }}
-          tags: |
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/heads/master') }}
-            type=ref,event=tag
-            type=sha,format=long
+        shell: bash
+        run: |
+          IMAGE="${{ vars.DOCKER_IMAGE }}"
+          if [[ -z "$IMAGE" ]]; then
+            echo "::error::vars.DOCKER_IMAGE is required"; exit 1
+          fi
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+          # Determine tags:
+          TAGS=()
+          if [[ "${GITHUB_REF}" == refs/heads/master || "${GITHUB_REF}" == refs/heads/master-nhoque ]]; then
+            TAGS+=("latest")
+          fi
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAGS+=("${GITHUB_REF#refs/tags/}")
+          fi
+          SHA="$(git rev-parse HEAD)"
+          TAGS+=("${SHA}")
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ vars.DOCKER_REGISTRY }}
-          username: ${{ vars.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PAT }}
+          printf '%s\n' "${TAGS[@]}" | awk '{print "tag="$0}' >> "$GITHUB_OUTPUT"
 
-      - name: Build & Push
-        uses: docker/build-push-action@v6
+      - uses: bazelbuild/setup-bazelisk@v3
+
+      - uses: actions/cache@v4
         with:
-          context: .
-          file: ./Dockerfile
-          pull: true
-          push: true
-          provenance: false
-          sbom: false
-          platforms: linux/amd64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ vars.DOCKER_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ vars.DOCKER_IMAGE }}:buildcache,mode=max
+          path: |
+            ${{ github.workspace }}/bazel-repo
+            ${{ github.workspace }}/bazel-disk
+          key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '**/*.bzl', '**/BUILD.bazel', 'go.mod', 'go.sum') }}
+          restore-keys: |
+            bazel-${{ runner.os }}-
+
+      - name: Login to registry (docker login)
+        env:
+          REGISTRY: ${{ vars.DOCKER_REGISTRY }}
+          USERNAME: ${{ vars.DOCKER_USERNAME }}
+          PASSWORD: ${{ secrets.DOCKER_PAT }}
+        run: |
+          echo "$PASSWORD" | docker login "$REGISTRY" -u "$USERNAME" --password-stdin
+
+      - name: Build image (linux/amd64)
+        run: |
+          # Build binary for linux/amd64 (so the image has correct arch)
+          bazel build //image:serve_image --platforms=@rules_go//go/toolchain:linux_amd64
+
+      - name: Push tags (rules_oci oci_push + stamping)
+        env:
+          DOCKER_IMAGE: ${{ steps.meta.outputs.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Push each tag by stamping DOCKER_TAG and invoking :push
+          while IFS='=' read -r k v; do
+            if [[ "$k" == "tag" ]]; then
+              export DOCKER_TAG="$v"
+              echo "Pushing ${DOCKER_IMAGE}:${DOCKER_TAG}"
+              bazel run //image:push \
+                --platforms=@rules_go//go/toolchain:linux_amd64 \
+                --stamp \
+                --workspace_status_command=tools/status.sh
+            fi
+          done < <(printf '%s\n' "${{ steps.meta.outputs.tag }}")

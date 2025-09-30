@@ -1,6 +1,8 @@
 # Let Gazelle generate/maintain BUILD files for your Go packages.
 load("@gazelle//:def.bzl", "gazelle")
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 # Run: `bazel run //:gazelle` whenever you add/rename Go files or deps.
 gazelle(name = "gazelle")
@@ -17,4 +19,27 @@ go_binary(
     name = "static-file-server",
     embed = [":static-file-server_lib"],
     visibility = ["//visibility:public"],
+)
+
+# Package the built Go binary into a layer placed at /
+pkg_tar(
+    name = "serve_layer",
+    srcs = ["//:serve"],  # go_binary from //BUILD.bazel
+    mode = "0755",
+    package_dir = "/",
+)
+
+# Minimal scratch-based image: just the binary at /serve
+oci_image(
+    name = "serve_image",
+    entrypoint = ["/serve"],
+    tars = [":serve_layer"],
+)
+
+# Push using stamping for repo/tag (provided by tools/status.sh)
+oci_push(
+    name = "push",
+    image = ":serve_image",
+    ref = "{STABLE_DOCKER_REPO}:{STABLE_DOCKER_TAG}",
+    stamp = True,
 )

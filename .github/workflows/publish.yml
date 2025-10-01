@@ -37,7 +37,6 @@ jobs:
           fi
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
-          # Determine tags:
           TAGS=()
           if [[ "${GITHUB_REF}" == refs/heads/master || "${GITHUB_REF}" == refs/heads/master-nhoque ]]; then
             TAGS+=("latest")
@@ -66,13 +65,14 @@ jobs:
           REGISTRY: ${{ vars.DOCKER_REGISTRY }}
           USERNAME: ${{ vars.DOCKER_USERNAME }}
           PASSWORD: ${{ secrets.DOCKER_PAT }}
+        shell: bash
         run: |
-          echo "$PASSWORD" | docker login "$REGISTRY" -u "$USERNAME" --password-stdin
+          REG="${REGISTRY:-docker.io}"
+          echo "$PASSWORD" | docker login "$REG" -u "$USERNAME" --password-stdin
 
       - name: Build image (linux/amd64)
         run: |
-          # Build binary for linux/amd64 (so the image has correct arch)
-          bazel build //image:serve_image --platforms=@rules_go//go/toolchain:linux_amd64
+          bazel build //:serve_image --platforms=@rules_go//go/toolchain:linux_amd64
 
       - name: Push tags (rules_oci oci_push + stamping)
         env:
@@ -80,12 +80,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Push each tag by stamping DOCKER_TAG and invoking :push
           while IFS='=' read -r k v; do
             if [[ "$k" == "tag" ]]; then
               export DOCKER_TAG="$v"
               echo "Pushing ${DOCKER_IMAGE}:${DOCKER_TAG}"
-              bazel run //image:push \
+              bazel run //:push \
                 --platforms=@rules_go//go/toolchain:linux_amd64 \
                 --stamp \
                 --workspace_status_command=tools/status.sh

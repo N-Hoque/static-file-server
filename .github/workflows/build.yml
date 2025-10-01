@@ -5,7 +5,7 @@ on:
     outputs:
       did_build:
         description: "Whether a build artifact was produced"
-        value: ${{ jobs.build.outputs.built || 'false' }}
+        value: ${{ jobs.report.outputs.built || 'false' }}
 
 jobs:
   check:
@@ -107,17 +107,15 @@ jobs:
   build:
     name: Build
     needs: [lint, test]
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     outputs:
       built: ${{ steps.flag.outputs.built }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        runner: [ubuntu-latest]
+        goos: [linux, windows, darwin]
         arch: [amd64, arm64]
-        exclude:
-          - os: windows-latest
-            arch: arm64
     env:
       BAZELISK_EXTRA_FLAGS: >-
         --repository_cache=${{ github.workspace }}/bazel-repo
@@ -138,23 +136,64 @@ jobs:
           key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '**/*.bzl', '**/BUILD.bazel', 'go.mod', 'go.sum') }}
           restore-keys: |
             bazel-${{ runner.os }}-
-      - name: Build binary with Bazel
+
+      - name: Build binary (cross-compile with rules_go)
+        id: bin
         shell: bash
         run: |
-          # Map matrix to rules_go platform label
-          case "${{ matrix.os }}:${{ matrix.arch }}" in
-            ubuntu-latest:amd64)  PLATFORM="linux_amd64" ;;
-            ubuntu-latest:arm64)  PLATFORM="linux_arm64" ;;
-            macos-latest:amd64)   PLATFORM="darwin_amd64" ;;
-            macos-latest:arm64)   PLATFORM="darwin_arm64" ;;
-            windows-latest:amd64) PLATFORM="windows_amd64" ;;
-            *) echo "Unsupported os/arch"; exit 1 ;;
+          set -euo pipefail
+          case "${{ matrix.goos }}/${{ matrix.arch }}" in
+            linux/amd64)   PLATFORM="@rules_go//go/toolchain:linux_amd64" ;;
+            linux/arm64)   PLATFORM="@rules_go//go/toolchain:linux_arm64" ;;
+            darwin/amd64)  PLATFORM="@rules_go//go/toolchain:darwin_amd64" ;;
+            darwin/arm64)  PLATFORM="@rules_go//go/toolchain:darwin_arm64" ;;
+            windows/amd64) PLATFORM="@rules_go//go/toolchain:windows_amd64" ;;
+            windows/arm64) PLATFORM="@rules_go//go/toolchain:windows_arm64" ;;
+            *) echo "Unsupported GOOS/GOARCH"; exit 1 ;;
           esac
 
-          bazel build //:serve --platforms=@io_bazel_rules_go//go/toolchain:${PLATFORM}
+          bazel build //:serve --platforms="${PLATFORM}"
 
-          # Optional: show where the binary ended up
-          bazel cquery //:serve --output=files || true
+          OUT="$(bazel cquery //:serve --platforms="${PLATFORM}" --output=files)"
+          EXT=""
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then EXT=".exe"; fi
+
+          mkdir -p out
+          DEST="out/serve-${{ matrix.goos }}-${{ matrix.arch }}${EXT}"
+          cp "$OUT" "$DEST"
+
+          echo "path=$DEST" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$DEST")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.bin.outputs.name }}
+          path: ${{ steps.bin.outputs.path }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Build container image (Linux only)
+        if: ${{ matrix.goos == 'linux' }}
+        shell: bash
+        run: |
+          case "${{ matrix.arch }}" in
+            amd64) PLATFORM="@rules_go//go/toolchain:linux_amd64" ;;
+            arm64) PLATFORM="@rules_go//go/toolchain:linux_arm64" ;;
+          esac
+          bazel build //:serve_image --platforms="${PLATFORM}"
+          bazel cquery //:serve_image --platforms="${PLATFORM}" --output=files || true
+
       - name: Mark workflow as built
         id: flag
+        run: echo "built=true" >> "$GITHUB_OUTPUT"
+
+  report:
+    name: Report outputs
+    runs-on: ubuntu-latest
+    needs: [build]
+    outputs:
+      built: ${{ steps.flag.outputs.built }}
+    steps:
+      - id: flag
         run: echo "built=true" >> "$GITHUB_OUTPUT"

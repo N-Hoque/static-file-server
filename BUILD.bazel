@@ -1,41 +1,37 @@
 load("@gazelle//:def.bzl", "gazelle")
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
 gazelle(name = "gazelle")
 
-go_library(
-    name = "static-file-server_lib",
-    srcs = ["main.go"],
-    importpath = "github.com/N-Hoque/static-file-server",
-    visibility = ["//visibility:private"],
-    deps = ["//pkg/cli"],
-)
-
 go_binary(
-    name = "static-file-server",
-    embed = [":static-file-server_lib"],
+    name = "serve",
+    srcs = ["main.go"],
     visibility = ["//visibility:public"],
+    deps = ["//pkg/cli"],
 )
 
 pkg_tar(
     name = "serve_layer",
-    srcs = [":static-file-server"],
+    srcs = [":serve"],
     mode = "0755",
     package_dir = "/",
 )
 
 oci_image(
     name = "serve_image",
-    architecture = "",
     base = "@distroless_base",
+    entrypoint = ["/serve"],
     tars = [":serve_layer"],
+    # Optionally set architecture here, or rely on --platforms during build.
+    # architecture = "amd64",
 )
 
 oci_push(
     name = "push",
     image = ":serve_image",
-    remote_tags = ["latest"],
-    repository = "docker.io/nhoque/static-file-server",
+    remote_tags = ["{STABLE_DOCKER_TAG}"],
+    # Resolved at runtime via --stamp + workspace_status_command.
+    repository = "{STABLE_DOCKER_IMAGE}",
 )

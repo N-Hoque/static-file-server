@@ -220,7 +220,10 @@ func TestOverrideWithEnvvars(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	validPath := "config.go"
+	tempDir, _ := os.MkdirTemp("/tmp", "*")
+	validFile, _ := os.CreateTemp(tempDir, "config.go")
+	defer validFile.Close()
+	validPath := validFile.Name()
 	invalidPath := "should/never/exist.txt"
 	empty := ""
 	prefix := "/my/prefix"

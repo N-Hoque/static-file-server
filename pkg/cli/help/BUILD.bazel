@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "help",
+    srcs = ["help.go"],
+    importpath = "github.com/N-Hoque/static-file-server/pkg/cli/help",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "help_test",
+    srcs = ["help_test.go"],
+    embed = [":help"],
+)

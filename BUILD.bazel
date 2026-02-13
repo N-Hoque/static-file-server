@@ -1,5 +1,5 @@
 load("@gazelle//:def.bzl", "gazelle")
-load("@rules_go//go:def.bzl", "go_binary")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
 
@@ -7,9 +7,8 @@ gazelle(name = "gazelle")
 
 go_binary(
     name = "serve",
-    srcs = ["main.go"],
+    embed = [":static-file-server_lib"],
     visibility = ["//visibility:public"],
-    deps = ["//pkg/cli"],
 )
 
 pkg_tar(
@@ -34,4 +33,12 @@ oci_push(
     remote_tags = ["{STABLE_DOCKER_TAG}"],
     # Resolved at runtime via --stamp + workspace_status_command.
     repository = "{STABLE_DOCKER_IMAGE}",
+)
+
+go_library(
+    name = "static-file-server_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/N-Hoque/static-file-server",
+    visibility = ["//visibility:private"],
+    deps = ["//pkg/cli"],
 )

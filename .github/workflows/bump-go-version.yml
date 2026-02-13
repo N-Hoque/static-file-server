@@ -69,7 +69,7 @@ jobs:
       # 5) Create a PR only if versions differ / changes exist
       - name: Create PR
         if: steps.cur.outputs.full != steps.ver.outputs.full
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: chore/bump-go-stable-${{ steps.ver.outputs.full }}
           title: "chore: bump Go to stable ${{ steps.ver.outputs.full }}"

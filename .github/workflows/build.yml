@@ -164,7 +164,7 @@ jobs:
           echo "name=$(basename "$DEST")" >> "$GITHUB_OUTPUT"
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ steps.bin.outputs.name }}
           path: ${{ steps.bin.outputs.path }}

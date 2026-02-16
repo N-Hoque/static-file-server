@@ -63,7 +63,7 @@ jobs:
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
       - name: Cache Bazel repo+disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/bazel-repo
@@ -92,7 +92,7 @@ jobs:
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
       - name: Cache Bazel repo+disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/bazel-repo
@@ -126,7 +126,7 @@ jobs:
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@v3
       - name: Cache Bazel repo+disk cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/bazel-repo

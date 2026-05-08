@@ -4,7 +4,7 @@ ARG VERSION=1.8.12
 ################################################################################
 ## GO BUILDER
 ################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.25.7 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.3 AS builder
 
 ARG VERSION
 ARG TARGETOS=linux

@@ -118,7 +118,7 @@ jobs:
           go build -ldflags "-s -w" -o "${DEST}" .
           echo "name=$(basename "${DEST}")" >> "$GITHUB_OUTPUT"
           echo "path=${DEST}" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.bin.outputs.name }}
           path: ${{ steps.bin.outputs.path }}

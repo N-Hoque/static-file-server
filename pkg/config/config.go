@@ -100,21 +100,53 @@ func Load(filename string, envMapper EnvMapper) (*Config, error) {
 		return nil, err
 	}
 
-	fmt.Println("TESTING")
-
 	overrideWithEnvVars(envMapper, &config)
 	return validate(&config)
+}
+
+type logConfig struct {
+	Cors          bool     `yaml:"cors"`
+	Debug         bool     `yaml:"debug"`
+	Folder        string   `yaml:"folder"`
+	Host          string   `yaml:"host"`
+	Port          uint16   `yaml:"port"`
+	AllowIndex    bool     `yaml:"allow-index"`
+	ShowListing   bool     `yaml:"show-listing"`
+	TLSMinVersStr string   `yaml:"tls-min-vers"`
+	TLSCertSet    bool     `yaml:"tls-cert-set"`
+	TLSKeySet     bool     `yaml:"tls-key-set"`
+	URLPrefix     string   `yaml:"url-prefix"`
+	Referrers     []string `yaml:"referrers"`
+	AccessKeySet  bool     `yaml:"access-key-set"`
+}
+
+func newLogConfig(config *Config) logConfig {
+	return logConfig{
+		Cors:          config.Cors,
+		Debug:         config.Debug,
+		Folder:        config.Folder,
+		Host:          config.Host,
+		Port:          config.Port,
+		AllowIndex:    config.AllowIndex,
+		ShowListing:   config.ShowListing,
+		TLSMinVersStr: config.TLSMinVersStr,
+		TLSCertSet:    len(config.TLSCert) > 0,
+		TLSKeySet:     len(config.TLSKey) > 0,
+		URLPrefix:     config.URLPrefix,
+		Referrers:     config.Referrers,
+		AccessKeySet:  len(config.AccessKey) > 0,
+	}
 }
 
 // Log the current configuration.
 func Log(config *Config) {
 	// YAML marshaling should never error, but if it could, the result is that
 	// the contents of the configuration are not logged.
-	contents, _ := yaml.Marshal(&config)
+	logConfig := newLogConfig(config)
 
 	// Log the configuration.
 	fmt.Println("Using the following configuration:")
-	fmt.Println(string(contents))
+	_ = yaml.NewEncoder(os.Stdout).Encode(&logConfig)
 }
 
 // overrideWithEnvVars the default values and the configuration file values.

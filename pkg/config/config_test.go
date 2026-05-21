@@ -118,7 +118,7 @@ func TestLoad(t *testing.T) {
 func TestLog(t *testing.T) {
 	// Test whether YAML marshaling works, as that is the only error case.
 	config := New()
-	if _, err := yaml.Marshal(&config); nil != err {
+	if _, err := yaml.Marshal(&config); nil != err { //nolint:gosec // This is test data, not a security issue.
 		t.Errorf("While testing YAML marshaling for config Log() got %v", err)
 	}
 	Log(config)

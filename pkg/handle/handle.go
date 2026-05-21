@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -87,25 +87,25 @@ func WithLogging(serveFile FileServerFunc) FileServerFunc {
 	return func(w http.ResponseWriter, r *http.Request, name string) {
 		referer := r.Referer()
 		if len(referer) == 0 {
-			log.Printf(
-				"REQ from '%s': %s %s %s%s -> %s\n",
-				r.RemoteAddr,
-				r.Method,
-				r.Proto,
-				r.Host,
-				r.URL.Path,
-				name,
+			slog.Info(
+				"received request",
+				"remote_address", r.RemoteAddr,
+				"method", r.Method,
+				"protocol", r.Proto,
+				"host", r.Host,
+				"path", r.URL.Path,
+				"name", name,
 			)
 		} else {
-			log.Printf(
-				"REQ from '%s' (REFERER: '%s'): %s %s %s%s -> %s\n",
-				r.RemoteAddr,
-				referer,
-				r.Method,
-				r.Proto,
-				r.Host,
-				r.URL.Path,
-				name,
+			slog.Info(
+				"received request",
+				"remote_address", r.RemoteAddr,
+				"referer", referer,
+				"method", r.Method,
+				"protocol", r.Proto,
+				"host", r.Host,
+				"path", r.URL.Path,
+				"name", name,
 			)
 		}
 		serveFile(w, r, name)

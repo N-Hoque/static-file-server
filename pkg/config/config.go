@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -104,49 +104,27 @@ func Load(filename string, envMapper EnvMapper) (*Config, error) {
 	return validate(&config)
 }
 
-type logConfig struct {
-	Cors          bool     `yaml:"cors"`
-	Debug         bool     `yaml:"debug"`
-	Folder        string   `yaml:"folder"`
-	Host          string   `yaml:"host"`
-	Port          uint16   `yaml:"port"`
-	AllowIndex    bool     `yaml:"allow-index"`
-	ShowListing   bool     `yaml:"show-listing"`
-	TLSMinVersStr string   `yaml:"tls-min-vers"`
-	TLSCertSet    bool     `yaml:"tls-cert-set"`
-	TLSKeySet     bool     `yaml:"tls-key-set"`
-	URLPrefix     string   `yaml:"url-prefix"`
-	Referrers     []string `yaml:"referrers"`
-	AccessKeySet  bool     `yaml:"access-key-set"`
-}
-
-func newLogConfig(config *Config) logConfig {
-	return logConfig{
-		Cors:          config.Cors,
-		Debug:         config.Debug,
-		Folder:        config.Folder,
-		Host:          config.Host,
-		Port:          config.Port,
-		AllowIndex:    config.AllowIndex,
-		ShowListing:   config.ShowListing,
-		TLSMinVersStr: config.TLSMinVersStr,
-		TLSCertSet:    len(config.TLSCert) > 0,
-		TLSKeySet:     len(config.TLSKey) > 0,
-		URLPrefix:     config.URLPrefix,
-		Referrers:     config.Referrers,
-		AccessKeySet:  len(config.AccessKey) > 0,
-	}
-}
-
 // Log the current configuration.
 func Log(config *Config) {
 	// YAML marshaling should never error, but if it could, the result is that
 	// the contents of the configuration are not logged.
-	logConfig := newLogConfig(config)
 
 	// Log the configuration.
-	fmt.Println("Using the following configuration:")
-	_ = yaml.NewEncoder(os.Stdout).Encode(&logConfig)
+	slog.Info("current configuration",
+		"debug", config.Debug,
+		"cors", config.Cors,
+		"folder", config.Folder,
+		"host", config.Host,
+		"port", config.Port,
+		"allow-index", config.AllowIndex,
+		"show-listing", config.ShowListing,
+		"tls-min-vers", config.TLSMinVersStr,
+		"url-prefix", config.URLPrefix,
+		"referrers", config.Referrers,
+		"tls-cert-set", len(config.TLSCert) > 0,
+		"tls-key-set", len(config.TLSKey) > 0,
+		"access-key-set", len(config.AccessKey) > 0,
+	)
 }
 
 // overrideWithEnvVars the default values and the configuration file values.
@@ -261,9 +239,11 @@ func envAsUint16(envMapper EnvMapper, key string, fallback uint16) uint16 {
 	bitSize := 16
 	valueAsUint64, err := strconv.ParseUint(valueStr, base, bitSize)
 	if err != nil {
-		log.Printf(
-			"Invalid value for '%s': %v\nUsing fallback: %d",
-			key, err, fallback,
+		slog.Warn(
+			"invalid value for key, using fallback",
+			"key", key,
+			"error", err,
+			"fallback", fallback,
 		)
 		return fallback
 	}
@@ -283,9 +263,11 @@ func envAsBool(envMapper EnvMapper, key string, fallback bool) bool {
 	// Parse the string into a boolean.
 	value, err := strAsBool(valueStr)
 	if err != nil {
-		log.Printf(
-			"Invalid value for '%s': %v\nUsing fallback: %t",
-			key, err, fallback,
+		slog.Warn(
+			"invalid value for key, using fallback",
+			"key", key,
+			"error", err,
+			"fallback", fallback,
 		)
 		return fallback
 	}

@@ -137,9 +137,15 @@ func Prefix(serveFile FileServerFunc, folder, urlPrefix string) http.HandlerFunc
 func PreventListings(serve http.HandlerFunc, folder string, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
-			// If the directory does not contain an index.html file, then
-			// return 'NOT FOUND' to prevent listing of the directory.
-			stat, err := os.Stat(path.Join(folder, strings.TrimPrefix(r.URL.Path, urlPrefix), "index.html"))
+			// If the following directory request does not exist, then return 'NOT FOUND'.
+			folderRoot, err := os.OpenRoot(path.Join(folder, strings.TrimPrefix(r.URL.Path, urlPrefix)))
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+
+			// If the following directory request does not contain an index.html file, then return 'NOT FOUND'.
+			stat, err := folderRoot.Stat("index.html")
 			if err != nil || !stat.Mode().IsRegular() {
 				http.NotFound(w, r)
 				return

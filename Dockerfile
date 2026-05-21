@@ -1,26 +1,39 @@
+# syntax=docker/dockerfile:1
+ARG VERSION=1.8.12
+
 ################################################################################
 ## GO BUILDER
 ################################################################################
-FROM golang:1.25.7 as builder
+FROM --platform=$BUILDPLATFORM golang:1.25.7 AS builder
 
-ENV VERSION 1.8.12
-ENV CGO_ENABLED 0
-ENV BUILD_DIR /build
+ARG VERSION
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ARG TARGETVARIANT
 
-RUN mkdir -p ${BUILD_DIR}
-WORKDIR ${BUILD_DIR}
-
+WORKDIR /build
 COPY go.* ./
 RUN go mod download
 COPY . .
 
-RUN go build -a -tags netgo -installsuffix netgo -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" -o /serve /build
+# Build for the target platform using Go's native cross-compilation.
+# BUILDPLATFORM keeps the builder on the native host so no QEMU emulation
+# is needed in this stage.  TARGETVARIANT carries "v7" for linux/arm/v7;
+# strip the leading "v" to produce the GOARM value that Go expects.
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    set -e; \
+    GOARM="${TARGETVARIANT#v}"; \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${GOARM} \
+    go build \
+        -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" \
+        -o /serve .
 
 ################################################################################
 ## DEPLOYMENT CONTAINER
 ################################################################################
 FROM scratch
 
+ARG VERSION
 EXPOSE 8080
 
 COPY --from=builder /serve /serve

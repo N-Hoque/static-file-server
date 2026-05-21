@@ -1,6 +1,21 @@
+# Version control
 .git
 .gitignore
+
+# Docker
 Dockerfile
-Dockerfile.all
+
+# CI / tooling
+.github/
+Makefile
+.rules
+
+# Documentation
 LICENSE
 README.md
+
+# Build artefacts
+serve
+out/
+coverage.out
+coverage.html

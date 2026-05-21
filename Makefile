@@ -1,4 +1,5 @@
-VERSION  ?= 1.8.13
+VERSION  ?= 1.9.0
+
 BINARY   := serve
 IMAGE    := nhoque/static-file-server
 

@@ -1,4 +1,11 @@
 vendor/
 
-# Ignore the binary output directory (result of running update.sh).
+# Compiled binary (go build / make build)
+/serve
+
+# Cross-compiled binaries (make cross-build)
 /out/
+
+# Coverage reports (make coverage)
+coverage.out
+coverage.html

@@ -1,4 +1,4 @@
-name: Docker Hub Publish (Linux)
+name: Docker Hub Publish
 
 on:
   push:
@@ -15,78 +15,58 @@ jobs:
     uses: ./.github/workflows/build.yml
 
   publish:
-    name: Publish (rules_oci)
+    name: Publish (Docker Hub)
     runs-on: ubuntu-latest
     environment: "Push Image"
     needs: [build]
     if: ${{ needs.build.outputs.did_build == 'true' }}
-    env:
-      BAZELISK_EXTRA_FLAGS: >-
-        --repository_cache=${{ github.workspace }}/bazel-repo
-        --disk_cache=${{ github.workspace }}/bazel-disk
     steps:
       - uses: actions/checkout@v6
 
-      - name: Compute image repo + tags (mirror docker/metadata-action behavior)
+      - name: Docker metadata
         id: meta
-        shell: bash
-        run: |
-          IMAGE="${{ vars.DOCKER_IMAGE }}"
-          if [[ -z "$IMAGE" ]]; then
-            echo "::error::vars.DOCKER_IMAGE is required"; exit 1
-          fi
-          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
-
-          TAGS=()
-          if [[ "${GITHUB_REF}" == refs/heads/master || "${GITHUB_REF}" == refs/heads/master-nhoque ]]; then
-            TAGS+=("latest")
-          fi
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            TAGS+=("${GITHUB_REF#refs/tags/}")
-          fi
-          SHA="$(git rev-parse HEAD)"
-          TAGS+=("${SHA}")
-
-          printf '%s\n' "${TAGS[@]}" | awk '{print "tag="$0}' >> "$GITHUB_OUTPUT"
-
-      - uses: bazelbuild/setup-bazelisk@v3
-
-      - uses: actions/cache@v4
+        uses: docker/metadata-action@v5
         with:
-          path: |
-            ${{ github.workspace }}/bazel-repo
-            ${{ github.workspace }}/bazel-disk
-          key: bazel-${{ runner.os }}-${{ hashFiles('MODULE.bazel', '**/*.bzl', '**/BUILD.bazel', 'go.mod', 'go.sum') }}
-          restore-keys: |
-            bazel-${{ runner.os }}-
+          images: ${{ vars.DOCKER_IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master-nhoque' }}
+            type=semver,pattern={{version}}
+            type=sha
 
-      - name: Login to registry (docker login)
-        env:
-          REGISTRY: ${{ vars.DOCKER_REGISTRY }}
-          USERNAME: ${{ vars.DOCKER_USERNAME }}
-          PASSWORD: ${{ secrets.DOCKER_PAT }}
+      # Compute a clean VERSION string for the binary's version ldflags:
+      #   - semver tag  v1.9.0  →  "1.9.0"
+      #   - branch push         →  first 7 chars of commit SHA
+      - name: Extract VERSION build arg
+        id: ver
         shell: bash
         run: |
-          REG="${REGISTRY:-docker.io}"
-          echo "$PASSWORD" | docker login "$REG" -u "$USERNAME" --password-stdin
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_SHA:0:7}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Build image (linux/amd64)
-        run: |
-          bazel build //:serve_image --platforms=@rules_go//go/toolchain:linux_amd64
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: Push tags (rules_oci oci_push + stamping)
-        env:
-          DOCKER_IMAGE: ${{ steps.meta.outputs.image }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          while IFS='=' read -r k v; do
-            if [[ "$k" == "tag" ]]; then
-              export DOCKER_TAG="$v"
-              echo "Pushing ${DOCKER_IMAGE}:${DOCKER_TAG}"
-              bazel run //:push \
-                --platforms=@rules_go//go/toolchain:linux_amd64 \
-                --stamp \
-                --workspace_status_command=tools/status.sh
-            fi
-          done < <(printf '%s\n' "${{ steps.meta.outputs.tag }}")
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.DOCKER_REGISTRY || 'docker.io' }}
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PAT }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.ver.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

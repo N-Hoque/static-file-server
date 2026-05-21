@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -87,25 +87,25 @@ func WithLogging(serveFile FileServerFunc) FileServerFunc {
 	return func(w http.ResponseWriter, r *http.Request, name string) {
 		referer := r.Referer()
 		if len(referer) == 0 {
-			log.Printf(
-				"REQ from '%s': %s %s %s%s -> %s\n",
-				r.RemoteAddr,
-				r.Method,
-				r.Proto,
-				r.Host,
-				r.URL.Path,
-				name,
+			slog.Info(
+				"received request",
+				"remote_address", r.RemoteAddr,
+				"method", r.Method,
+				"protocol", r.Proto,
+				"host", r.Host,
+				"path", r.URL.Path,
+				"name", name,
 			)
 		} else {
-			log.Printf(
-				"REQ from '%s' (REFERER: '%s'): %s %s %s%s -> %s\n",
-				r.RemoteAddr,
-				referer,
-				r.Method,
-				r.Proto,
-				r.Host,
-				r.URL.Path,
-				name,
+			slog.Info(
+				"received request",
+				"remote_address", r.RemoteAddr,
+				"referer", referer,
+				"method", r.Method,
+				"protocol", r.Proto,
+				"host", r.Host,
+				"path", r.URL.Path,
+				"name", name,
 			)
 		}
 		serveFile(w, r, name)
@@ -137,9 +137,15 @@ func Prefix(serveFile FileServerFunc, folder, urlPrefix string) http.HandlerFunc
 func PreventListings(serve http.HandlerFunc, folder string, urlPrefix string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
-			// If the directory does not contain an index.html file, then
-			// return 'NOT FOUND' to prevent listing of the directory.
-			stat, err := os.Stat(path.Join(folder, strings.TrimPrefix(r.URL.Path, urlPrefix), "index.html"))
+			// If the following directory request does not exist, then return 'NOT FOUND'.
+			folderRoot, err := os.OpenRoot(path.Join(folder, strings.TrimPrefix(r.URL.Path, urlPrefix)))
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+
+			// If the following directory request does not contain an index.html file, then return 'NOT FOUND'.
+			stat, err := folderRoot.Stat("index.html")
 			if err != nil || !stat.Mode().IsRegular() {
 				http.NotFound(w, r)
 				return

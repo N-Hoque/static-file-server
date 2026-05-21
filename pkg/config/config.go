@@ -100,6 +100,8 @@ func Load(filename string, envMapper EnvMapper) (*Config, error) {
 		return nil, err
 	}
 
+	fmt.Println("TESTING")
+
 	overrideWithEnvVars(envMapper, &config)
 	return validate(&config)
 }

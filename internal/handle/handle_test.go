@@ -582,6 +582,33 @@ func TestTLSListening(t *testing.T) {
 	}
 }
 
+func TestSanitizeLog(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"Clean string", "hello world", "hello world"},
+		{"Newline", "foo\nbar", "foo bar"},
+		{"Carriage return", "foo\rbar", "foo bar"},
+		{"Tab", "foo\tbar", "foo bar"},
+		{"DEL", "foo\x7fbar", "foo bar"},
+		{"Null byte", "foo\x00bar", "foo bar"},
+		{"Multiple control chars", "a\nb\rc\td", "a b c d"},
+		{"Empty string", "", ""},
+		{"Injected log line", "host.com\nINFO spoofed=true", "host.com INFO spoofed=true"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := sanitizeLog(tc.input)
+			if tc.expected != result {
+				t.Errorf("sanitizeLog(%q) = %q, want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
 func TestValidReferrer(t *testing.T) {
 	ok1 := "http://valid.com"
 	ok2 := "https://valid.com"

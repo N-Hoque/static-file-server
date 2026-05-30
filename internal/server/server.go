@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/N-Hoque/static-file-server/pkg/config"
-	"github.com/N-Hoque/static-file-server/pkg/handle"
+	"github.com/N-Hoque/static-file-server/internal/config"
+	"github.com/N-Hoque/static-file-server/internal/handle"
 )
 
 var (

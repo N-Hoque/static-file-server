@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/N-Hoque/static-file-server/pkg/config"
+	"github.com/N-Hoque/static-file-server/internal/config"
 )
 
 func TestSetupFlags(t *testing.T) {

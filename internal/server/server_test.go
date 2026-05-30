@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/N-Hoque/static-file-server/pkg/config"
-	"github.com/N-Hoque/static-file-server/pkg/handle"
+	"github.com/N-Hoque/static-file-server/internal/config"
+	"github.com/N-Hoque/static-file-server/internal/handle"
 )
 
 func TestRun(t *testing.T) {

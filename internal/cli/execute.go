@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/N-Hoque/static-file-server/pkg/cli/help"
-	"github.com/N-Hoque/static-file-server/pkg/cli/version"
-	"github.com/N-Hoque/static-file-server/pkg/config"
-	"github.com/N-Hoque/static-file-server/pkg/server"
+	"github.com/N-Hoque/static-file-server/internal/cli/help"
+	"github.com/N-Hoque/static-file-server/internal/cli/version"
+	"github.com/N-Hoque/static-file-server/internal/config"
+	"github.com/N-Hoque/static-file-server/internal/server"
 )
 
 var option struct {

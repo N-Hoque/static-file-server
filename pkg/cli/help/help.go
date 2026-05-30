@@ -1,3 +1,4 @@
+// Package help provides help text for the CLI
 package help
 
 import (

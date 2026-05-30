@@ -1,3 +1,4 @@
+// Package config defines the configuration format for the static file server
 package config
 
 import (

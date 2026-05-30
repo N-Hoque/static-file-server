@@ -1,3 +1,4 @@
+// Package server is the core of the static file server
 package server
 
 import (

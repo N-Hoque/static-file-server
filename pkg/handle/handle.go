@@ -1,3 +1,4 @@
+// Package handle provides the HTTP handlers within the static file server
 package handle
 
 import (

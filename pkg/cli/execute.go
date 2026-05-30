@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/N-Hoque/static-file-server/pkg/cli/help"
-	"github.com/N-Hoque/static-file-server/pkg/cli/server"
 	"github.com/N-Hoque/static-file-server/pkg/cli/version"
 	"github.com/N-Hoque/static-file-server/pkg/config"
+	"github.com/N-Hoque/static-file-server/pkg/server"
 )
 
 var option struct {

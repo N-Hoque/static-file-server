@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${GOARM} \
     go build \
         -ldflags "-s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=${VERSION}" \
-        -o /serve .
+        -o /serve cmd/serve/main.go
 
 ################################################################################
 ## DEPLOYMENT CONTAINER

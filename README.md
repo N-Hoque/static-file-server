@@ -24,8 +24,8 @@ Default values are shown with the associated environment variable.
 CORS=false
 
 # Enable debugging for troubleshooting. If set to 'true' this prints extra
-# information during execution. IMPORTANT NOTE: The configuration summary is
-# printed to stdout while logs generated during execution are printed to stderr.
+# information during execution. All output, including the configuration summary
+# and request logs, is written to stderr as structured JSON.
 DEBUG=false
 
 # Optional Hostname for binding. Leave unset to accept any incoming HTTP request
@@ -109,8 +109,8 @@ debug: true
 folder: /var/www
 port: 80
 referrers:
-    - http://localhost
-    - https://mydomain.com
+  - http://localhost
+  - https://mydomain.com
 ```
 
 ## Deployment

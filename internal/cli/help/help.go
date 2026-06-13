@@ -1,3 +1,4 @@
+// Package help provides help text for the CLI
 package help
 
 import (
@@ -38,9 +39,8 @@ ENVIRONMENT VARIABLES
         'Access-Control-Allow-Headers' with a wildcard value ('*').
     DEBUG
         When set to 'true' enables additional logging, including the
-        configuration used and an access log for each request. IMPORTANT NOTE:
-        The configuration summary is printed to stdout while logs generated
-        during execution are printed to stderr. Default value is 'false'.
+        configuration used and an access log for each request. All output is
+        written to stderr as structured JSON. Default value is 'false'.
     FOLDER
         The path to the folder containing the contents to be served over
         HTTP(s). If not supplied, defaults to '/web' (for Docker reasons).

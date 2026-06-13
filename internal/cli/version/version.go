@@ -1,3 +1,4 @@
+// Package version provides the version information for the static file server
 package version
 
 import (

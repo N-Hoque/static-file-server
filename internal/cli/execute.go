@@ -4,10 +4,10 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/N-Hoque/static-file-server/pkg/cli/help"
-	"github.com/N-Hoque/static-file-server/pkg/cli/server"
-	"github.com/N-Hoque/static-file-server/pkg/cli/version"
-	"github.com/N-Hoque/static-file-server/pkg/config"
+	"github.com/N-Hoque/static-file-server/internal/cli/help"
+	"github.com/N-Hoque/static-file-server/internal/cli/version"
+	"github.com/N-Hoque/static-file-server/internal/config"
+	"github.com/N-Hoque/static-file-server/internal/server"
 )
 
 var option struct {
@@ -85,8 +85,7 @@ func unknownArgs(args Args) func() error {
 
 func withConfig(routine func(*config.Config) error) func() error {
 	return func() error {
-		realEnvMapper := config.NewRealEnvMapper()
-		config, err := loadConfig(option.configFile, realEnvMapper)
+		config, err := loadConfig(option.configFile)
 		if err != nil {
 			return err
 		}

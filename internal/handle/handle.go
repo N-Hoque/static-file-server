@@ -1,3 +1,4 @@
+// Package handle provides the HTTP handlers within the static file server
 package handle
 
 import (
@@ -85,31 +86,48 @@ func WithReferrers(serveFile FileServerFunc, referrers ...string) FileServerFunc
 // to serving the requested file.
 func WithLogging(serveFile FileServerFunc) FileServerFunc {
 	return func(w http.ResponseWriter, r *http.Request, name string) {
-		referer := r.Referer()
-		if len(referer) == 0 {
-			slog.Info(
-				"received request",
-				"remote_address", r.RemoteAddr,
-				"method", r.Method,
-				"protocol", r.Proto,
-				"host", r.Host,
-				"path", r.URL.Path,
-				"name", name,
-			)
-		} else {
-			slog.Info(
-				"received request",
-				"remote_address", r.RemoteAddr,
+		// strings.ReplaceAll is a gosec-recognized G706 sanitizer that clears taint on
+		// HTTP-derived fields. sanitizeLog then strips all remaining control characters.
+		remAddr := sanitizeLog(strings.ReplaceAll(r.RemoteAddr, "\n", " "))
+		method := sanitizeLog(strings.ReplaceAll(r.Method, "\n", " "))
+		proto := sanitizeLog(strings.ReplaceAll(r.Proto, "\n", " "))
+		host := sanitizeLog(strings.ReplaceAll(r.Host, "\n", " "))
+		path := sanitizeLog(strings.ReplaceAll(r.URL.Path, "\n", " "))
+		logName := sanitizeLog(strings.ReplaceAll(name, "\n", " "))
+
+		reqLog := slog.With(
+			"remote_address", remAddr,
+			"method", method,
+			"protocol", proto,
+			"host", host,
+			"path", path,
+			"name", logName,
+		)
+
+		referer := sanitizeLog(strings.ReplaceAll(r.Referer(), "\n", " "))
+		if len(referer) != 0 {
+			reqLog.With(
 				"referer", referer,
-				"method", r.Method,
-				"protocol", r.Proto,
-				"host", r.Host,
-				"path", r.URL.Path,
-				"name", name,
 			)
 		}
+
+		reqLog.Info("received_request")
+
 		serveFile(w, r, name)
 	}
+}
+
+// sanitizeLog strips control characters from a string to prevent log injection.
+// Must only be called on values already passed through a gosec-recognized G706
+// sanitizer (e.g. strings.ReplaceAll), as it is not itself recognized by gosec's
+// taint analysis.
+func sanitizeLog(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 32 || r == 127 {
+			return ' '
+		}
+		return r
+	}, s)
 }
 
 // Basic file handler servers files from the passed folder.

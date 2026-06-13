@@ -86,13 +86,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { goos: linux, goarch: amd64 }
-          - { goos: linux, goarch: arm64 }
-          - { goos: linux, goarch: arm, goarm: "7" }
-          - { goos: darwin, goarch: amd64 }
-          - { goos: darwin, goarch: arm64 }
-          - { goos: windows, goarch: amd64 }
-          - { goos: windows, goarch: arm64 }
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: linux
+            goarch: arm
+            goarm: "7"
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
     env:
       CGO_ENABLED: "0"
       GOOS: ${{ matrix.goos }}
@@ -115,7 +123,7 @@ jobs:
           SUFFIX="${GOOS}-${GOARCH}${{ matrix.goarm && format('v{0}', matrix.goarm) || '' }}"
           DEST="out/serve-${SUFFIX}${EXT}"
           mkdir -p out
-          go build -ldflags "-s -w" -o "${DEST}" .
+          go build -ldflags "-s -w" -o "${DEST}" cmd/serve/main.go
           echo "name=$(basename "${DEST}")" >> "$GITHUB_OUTPUT"
           echo "path=${DEST}" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7

@@ -156,6 +156,7 @@ func TestWithReferrers(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			handler := WithReferrers(success, tc.referers...)
 
 			fullpath := "http://localhost/" + tmpIndexName
@@ -211,6 +212,7 @@ func TestBasicWithAndWithoutLogging(t *testing.T) {
 		handler := Basic(serveFile, baseDir)
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				fullpath := "http://localhost/" + tc.path
 				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				req.Header.Add("Referer", tc.refer)
@@ -265,6 +267,7 @@ func TestPrefix(t *testing.T) {
 		handler := Prefix(serveFile, baseDir, prefix)
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				fullpath := "http://localhost" + tc.path
 				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
@@ -314,6 +317,7 @@ func TestIgnoreIndex(t *testing.T) {
 		handler := IgnoreIndex(Basic(serveFile, baseDir))
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				fullpath := "http://localhost/" + tc.path
 				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
@@ -364,6 +368,7 @@ func TestPreventListings(t *testing.T) {
 		handler := PreventListings(Basic(serveFile, baseDir), baseDir, "")
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				fullpath := "http://localhost/" + tc.path
 				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
@@ -453,6 +458,7 @@ func TestAddAccessKey(t *testing.T) {
 		handler := AddAccessKey(Basic(serveFile, baseDir), accessKey)
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				fullpath := fmt.Sprintf("http://localhost/%s?%s=%s", tc.path, tc.key, tc.value)
 				req := httptest.NewRequest(http.MethodGet, fullpath, nil)
 				w := httptest.NewRecorder()
@@ -582,6 +588,34 @@ func TestTLSListening(t *testing.T) {
 	}
 }
 
+func TestSanitizeLog(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"Clean string", "hello world", "hello world"},
+		{"Newline", "foo\nbar", "foo bar"},
+		{"Carriage return", "foo\rbar", "foo bar"},
+		{"Tab", "foo\tbar", "foo bar"},
+		{"DEL", "foo\x7fbar", "foo bar"},
+		{"Null byte", "foo\x00bar", "foo bar"},
+		{"Multiple control chars", "a\nb\rc\td", "a b c d"},
+		{"Empty string", "", ""},
+		{"Injected log line", "host.com\nINFO spoofed=true", "host.com INFO spoofed=true"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := sanitizeLog(tc.input)
+			if tc.expected != result {
+				t.Errorf("sanitizeLog(%q) = %q, want %q", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
 func TestValidReferrer(t *testing.T) {
 	ok1 := "http://valid.com"
 	ok2 := "https://valid.com"
@@ -618,6 +652,7 @@ func TestValidReferrer(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := validReferer(tc.refer, tc.refers...)
 			if result != tc.result {
 				t.Errorf(
@@ -646,6 +681,7 @@ func TestAddCorsWildcardHeaders(t *testing.T) {
 	for _, serveFile := range serveFileFuncs {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
 				var handler http.HandlerFunc
 				if tc.corsEnabled {
 					handler = AddCorsWildcardHeaders(Basic(serveFile, baseDir))

@@ -70,6 +70,7 @@ func TestMatches(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			args := Parse(tc.value)
 			if resp := args.Matches(tc.pattern...); tc.result != resp {
 				msg := "For arguments [%v] matched to pattern [%v] expected " +

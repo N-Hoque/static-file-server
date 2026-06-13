@@ -91,6 +91,7 @@ func TestHandlerSelector(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			testConfig := config.New()
 			testConfig.Debug = tc.debug
 			testConfig.Folder = tc.folder

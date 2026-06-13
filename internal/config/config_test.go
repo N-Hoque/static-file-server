@@ -10,33 +10,6 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-type MockEnvMapper struct {
-	EnvVars map[string]string
-}
-
-func NewMockEnvMapper() *MockEnvMapper {
-	return &MockEnvMapper{
-		EnvVars: make(map[string]string),
-	}
-}
-
-func (m *MockEnvMapper) GetEnv(key string) string {
-	value, exists := m.EnvVars[key]
-	if !exists {
-		return ""
-	}
-	return value
-}
-
-func (m *MockEnvMapper) SetEnv(key, value string) error {
-	if value == "" {
-		delete(m.EnvVars, key)
-	} else {
-		m.EnvVars[key] = value
-	}
-	return nil
-}
-
 func TestLoad(t *testing.T) {
 	// Verify envvars are set.
 	testDir, err := os.MkdirTemp("/tmp", "*")
@@ -44,12 +17,9 @@ func TestLoad(t *testing.T) {
 		t.Fatalf("Failed to create temporary directory: %v", err)
 	}
 
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(folderKey, testDir); err != nil {
-		t.Fatalf("failed to set env %s: %v", folderKey, err)
-	}
+	t.Setenv(folderKey, testDir)
 
-	config, err := Load("", testEnvMapper)
+	config, err := Load("")
 	if err != nil {
 		t.Errorf(
 			"While loading an empty file name expected no error but got %v",
@@ -64,55 +34,40 @@ func TestLoad(t *testing.T) {
 	}
 
 	// Verify error if file doesn't exist.
-	config, err = Load("/this/file/should/never/exist", testEnvMapper)
+	_, err = Load("/this/file/should/never/exist")
 	if err == nil {
 		t.Error("While loading non-existing file expected error but got nil")
 	}
 
-	// Verify bad YAML returns an error.
-	func(t *testing.T) {
-		tempfile, err := os.CreateTemp(testDir, "*") // Create a temporary file.
-		if err != nil {
-			t.Fatalf("Failed to create temporary file: %v", err)
-		}
-		contents := []byte("{")
-		defer func() { _ = os.Remove(tempfile.Name()) }()
+	tests := []struct {
+		description string
+		contents    []byte
+		success     bool
+	}{
+		{description: "Invalid YAML", contents: []byte("{"), success: false},
+		{description: "Well-Formed YAML", contents: []byte(`{"folder": "%s"}`), success: true},
+	}
 
-		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
-			t.Errorf("Failed to save bad YAML file with: %v\n", err)
-		}
-		config, err = Load(tempfile.Name(), testEnvMapper)
-		if err == nil {
-			t.Error("While loading bad YAML expected error but got nil")
-		}
-	}(t)
-
-	// Verify good YAML returns no error and sets value.
-	func(t *testing.T) {
-		tempfile, err := os.CreateTemp(testDir, "*") // Create a temporary file.
-		if err != nil {
-			t.Fatalf("Failed to create temporary file: %v", err)
-		}
-		contents := fmt.Appendf(nil,
-			`{"folder": "%s"}`, testDir,
-		)
-		defer func() {
-			if err := os.Remove(tempfile.Name()); err != nil {
-				t.Fatalf("Failed to delete temporary file")
+	for _, test := range tests {
+		t.Run(test.description, func(t *testing.T) {
+			t.Parallel()
+			var err error
+			tempfile, err := os.CreateTemp(testDir, "*") // Create a temporary file.
+			if err != nil {
+				t.Fatalf("Failed to create temporary file: %v", err)
 			}
-		}()
-
-		if err := os.WriteFile(tempfile.Name(), contents, 0o600); err != nil {
-			t.Errorf("Failed to save good YAML file with: %v\n", err)
-		}
-		config, err = Load(tempfile.Name(), testEnvMapper)
-		if err != nil {
-			t.Errorf(
-				"While loading good YAML expected nil but got %v",
-				err,
-			)
-		}
-	}(t)
+			defer func() { _ = os.Remove(tempfile.Name()) }()
+			if err = os.WriteFile(tempfile.Name(), test.contents, 0o600); err != nil {
+				t.Errorf("Failed to save bad YAML file with: %v\n", err)
+			}
+			_, err = Load(tempfile.Name())
+			if test.success && err != nil {
+				t.Fatalf("Expected test to success, failed instead: %v", err)
+			} else if !test.success && err == nil {
+				t.Fatalf("Expected test to failed, succeeded instead: %v", err)
+			}
+		})
+	}
 }
 
 func TestLog(t *testing.T) {
@@ -137,32 +92,31 @@ func TestOverrideWithEnvvars(t *testing.T) {
 	testURLPrefix := "/url/prefix"
 
 	// Set all environment variables with test values.
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(debugKey, fmt.Sprintf("%t", testDebug)); err != nil {
+	if err := os.Setenv(debugKey, fmt.Sprintf("%t", testDebug)); err != nil {
 		t.Fatalf("error setting %s: %v", debugKey, err)
 	}
-	if err := testEnvMapper.SetEnv(folderKey, testFolder); err != nil {
+	if err := os.Setenv(folderKey, testFolder); err != nil {
 		t.Fatalf("error setting %s: %v", folderKey, err)
 	}
-	if err := testEnvMapper.SetEnv(hostKey, testHost); err != nil {
+	if err := os.Setenv(hostKey, testHost); err != nil {
 		t.Fatalf("error setting %s: %v", hostKey, err)
 	}
-	if err := testEnvMapper.SetEnv(portKey, strconv.Itoa(int(testPort))); err != nil {
+	if err := os.Setenv(portKey, strconv.Itoa(int(testPort))); err != nil {
 		t.Fatalf("error setting %s: %v", portKey, err)
 	}
-	if err := testEnvMapper.SetEnv(allowIndexKey, fmt.Sprintf("%t", testAllowIndex)); err != nil {
+	if err := os.Setenv(allowIndexKey, fmt.Sprintf("%t", testAllowIndex)); err != nil {
 		t.Fatalf("error setting %s: %v", allowIndexKey, err)
 	}
-	if err := testEnvMapper.SetEnv(showListingKey, fmt.Sprintf("%t", testShowListing)); err != nil {
+	if err := os.Setenv(showListingKey, fmt.Sprintf("%t", testShowListing)); err != nil {
 		t.Fatalf("error setting %s: %v", showListingKey, err)
 	}
-	if err := testEnvMapper.SetEnv(tlsCertKey, testTLSCert); err != nil {
+	if err := os.Setenv(tlsCertKey, testTLSCert); err != nil {
 		t.Fatalf("error setting %s: %v", tlsCertKey, err)
 	}
-	if err := testEnvMapper.SetEnv(tlsKeyKey, testTLSKey); err != nil {
+	if err := os.Setenv(tlsKeyKey, testTLSKey); err != nil {
 		t.Fatalf("error setting %s: %v", tlsKeyKey, err)
 	}
-	if err := testEnvMapper.SetEnv(urlPrefixKey, testURLPrefix); err != nil {
+	if err := os.Setenv(urlPrefixKey, testURLPrefix); err != nil {
 		t.Fatalf("error setting %s: %v", urlPrefixKey, err)
 	}
 
@@ -205,7 +159,7 @@ func TestOverrideWithEnvvars(t *testing.T) {
 	equalStrings(t, phase, urlPrefixKey, defaultURLPrefix, config.URLPrefix)
 
 	// Apply overrides.
-	overrideWithEnvVars(testEnvMapper, config)
+	overrideWithEnvVars(config)
 
 	// Verify overrides.
 	phase = "overrides"
@@ -259,6 +213,7 @@ func TestValidate(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			config := New()
 			config.TLSCert = tc.cert
 			config.TLSKey = tc.key
@@ -292,20 +247,19 @@ func TestEnvAsStr(t *testing.T) {
 	fbr := "fallback result" // Fallback result
 	efbr := ""               // Empty fallback result
 
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(sv, sr); err != nil {
+	if err := os.Setenv(sv, sr); err != nil {
 		t.Fatalf("error setting %s: %v", sv, err)
 	}
-	if err := testEnvMapper.SetEnv(fv, fr); err != nil {
+	if err := os.Setenv(fv, fr); err != nil {
 		t.Fatalf("error setting %s: %v", fv, err)
 	}
-	if err := testEnvMapper.SetEnv(iv, ir); err != nil {
+	if err := os.Setenv(iv, ir); err != nil {
 		t.Fatalf("error setting %s: %v", iv, err)
 	}
-	if err := testEnvMapper.SetEnv(bv, br); err != nil {
+	if err := os.Setenv(bv, br); err != nil {
 		t.Fatalf("error setting %s: %v", bv, err)
 	}
-	if err := testEnvMapper.SetEnv(ev, er); err != nil {
+	if err := os.Setenv(ev, er); err != nil {
 		t.Fatalf("error setting %s: %v", ev, err)
 	}
 
@@ -327,7 +281,8 @@ func TestEnvAsStr(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := envAsStr(testEnvMapper, tc.key, tc.fallback)
+			t.Parallel()
+			result := envAsStr(tc.key, tc.fallback)
 			if tc.result != result {
 				t.Errorf(
 					"For %s with a '%s' fallback expected '%s' but got '%s'",
@@ -367,26 +322,25 @@ func TestEnvAsStrSlice(t *testing.T) {
 	ocr := []string{"", ""}
 	evs := ""
 
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(oe, oes); err != nil {
+	if err := os.Setenv(oe, oes); err != nil {
 		t.Fatalf("error setting %s: %v", oe, err)
 	}
-	if err := testEnvMapper.SetEnv(oewc, oewcs); err != nil {
+	if err := os.Setenv(oewc, oewcs); err != nil {
 		t.Fatalf("error setting %s: %v", oewc, err)
 	}
-	if err := testEnvMapper.SetEnv(oewtc, oewtcs); err != nil {
+	if err := os.Setenv(oewtc, oewtcs); err != nil {
 		t.Fatalf("error setting %s: %v", oewtc, err)
 	}
-	if err := testEnvMapper.SetEnv(te, tes); err != nil {
+	if err := os.Setenv(te, tes); err != nil {
 		t.Fatalf("error setting %s: %v", te, err)
 	}
-	if err := testEnvMapper.SetEnv(tewc, tewcs); err != nil {
+	if err := os.Setenv(tewc, tewcs); err != nil {
 		t.Fatalf("error setting %s: %v", tewc, err)
 	}
-	if err := testEnvMapper.SetEnv(oc, ocs); err != nil {
+	if err := os.Setenv(oc, ocs); err != nil {
 		t.Fatalf("error setting %s: %v", oc, err)
 	}
-	if err := testEnvMapper.SetEnv(ev, evs); err != nil {
+	if err := os.Setenv(ev, evs); err != nil {
 		t.Fatalf("error setting %s: %v", ev, err)
 	}
 
@@ -434,7 +388,8 @@ func TestEnvAsStrSlice(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := envAsStrSlice(testEnvMapper, tc.key, tc.fallback)
+			t.Parallel()
+			result := envAsStrSlice(tc.key, tc.fallback)
 			if !matches(tc.result, result) {
 				t.Errorf(
 					"For %s with a '%v' fallback expected '%v' but got '%v'",
@@ -458,23 +413,22 @@ func TestEnvAsUint16(t *testing.T) {
 	ubr := uint16(65535) // Upper bounds result
 	lbr := uint16(0)     // Lower bounds result
 
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(ubv, "65535"); err != nil {
+	if err := os.Setenv(ubv, "65535"); err != nil {
 		t.Fatalf("error setting %s: %v", ubv, err)
 	}
-	if err := testEnvMapper.SetEnv(lbv, "0"); err != nil {
+	if err := os.Setenv(lbv, "0"); err != nil {
 		t.Fatalf("error setting %s: %v", lbv, err)
 	}
-	if err := testEnvMapper.SetEnv(hv, "65536"); err != nil {
+	if err := os.Setenv(hv, "65536"); err != nil {
 		t.Fatalf("error setting %s: %v", hv, err)
 	}
-	if err := testEnvMapper.SetEnv(lv, "-1"); err != nil {
+	if err := os.Setenv(lv, "-1"); err != nil {
 		t.Fatalf("error setting %s: %v", lv, err)
 	}
-	if err := testEnvMapper.SetEnv(bv, "true"); err != nil {
+	if err := os.Setenv(bv, "true"); err != nil {
 		t.Fatalf("error setting %s: %v", bv, err)
 	}
-	if err := testEnvMapper.SetEnv(sv, "Cheese"); err != nil {
+	if err := os.Setenv(sv, "Cheese"); err != nil {
 		t.Fatalf("error setting %s: %v", sv, err)
 	}
 
@@ -495,7 +449,8 @@ func TestEnvAsUint16(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := envAsUint16(testEnvMapper, tc.key, tc.fallback)
+			t.Parallel()
+			result := envAsUint16(tc.key, tc.fallback)
 			if tc.result != result {
 				t.Errorf(
 					"For %s with a %d fallback expected %d but got %d",
@@ -512,14 +467,13 @@ func TestEnvAsBool(t *testing.T) {
 	bv := "BAD_VALUE"
 	uv := "UNSET_VALUE"
 
-	testEnvMapper := NewMockEnvMapper()
-	if err := testEnvMapper.SetEnv(tv, "True"); err != nil {
+	if err := os.Setenv(tv, "True"); err != nil {
 		t.Fatalf("error setting %s: %v", tv, err)
 	}
-	if err := testEnvMapper.SetEnv(fv, "NO"); err != nil {
+	if err := os.Setenv(fv, "NO"); err != nil {
 		t.Fatalf("error setting %s: %v", fv, err)
 	}
-	if err := testEnvMapper.SetEnv(bv, "BAD"); err != nil {
+	if err := os.Setenv(bv, "BAD"); err != nil {
 		t.Fatalf("error setting %s: %v", bv, err)
 	}
 
@@ -541,7 +495,8 @@ func TestEnvAsBool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := envAsBool(testEnvMapper, tc.key, tc.fallback)
+			t.Parallel()
+			result := envAsBool(tc.key, tc.fallback)
 			if tc.result != result {
 				t.Errorf(
 					"For %s with a %t fallback expected %t but got %t",
@@ -566,6 +521,7 @@ func TestStrAsBool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := strAsBool(tc.value)
 			if result != tc.result {
 				t.Errorf(
@@ -606,6 +562,7 @@ func TestTlsMinVersAsUint16(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := tlsMinVersAsUint16(tc.value)
 			if result != tc.result {
 				t.Errorf(

@@ -82,11 +82,11 @@ var (
 )
 
 // Load the configuration file.
-func Load(filename string, envMapper EnvMapper) (*Config, error) {
+func Load(filename string) (*Config, error) {
 	// If no filename provided, assign envvars.
 	if filename == "" {
 		config := New()
-		overrideWithEnvVars(envMapper, config)
+		overrideWithEnvVars(config)
 		return validate(config)
 	}
 
@@ -101,7 +101,7 @@ func Load(filename string, envMapper EnvMapper) (*Config, error) {
 		return nil, err
 	}
 
-	overrideWithEnvVars(envMapper, &config)
+	overrideWithEnvVars(&config)
 	return validate(&config)
 }
 
@@ -129,21 +129,21 @@ func Log(config *Config) {
 }
 
 // overrideWithEnvVars the default values and the configuration file values.
-func overrideWithEnvVars(envMapper EnvMapper, config *Config) {
+func overrideWithEnvVars(config *Config) {
 	// Assign envvars, if set.
-	config.Cors = envAsBool(envMapper, corsKey, config.Cors)
-	config.Debug = envAsBool(envMapper, debugKey, config.Debug)
-	config.Folder = envAsStr(envMapper, folderKey, config.Folder)
-	config.Host = envAsStr(envMapper, hostKey, config.Host)
-	config.Port = envAsUint16(envMapper, portKey, config.Port)
-	config.AllowIndex = envAsBool(envMapper, allowIndexKey, config.AllowIndex)
-	config.ShowListing = envAsBool(envMapper, showListingKey, config.ShowListing)
-	config.TLSCert = envAsStr(envMapper, tlsCertKey, config.TLSCert)
-	config.TLSKey = envAsStr(envMapper, tlsKeyKey, config.TLSKey)
-	config.TLSMinVersStr = envAsStr(envMapper, tlsMinVersKey, config.TLSMinVersStr)
-	config.URLPrefix = envAsStr(envMapper, urlPrefixKey, config.URLPrefix)
-	config.Referrers = envAsStrSlice(envMapper, referrersKey, config.Referrers)
-	config.AccessKey = envAsStr(envMapper, accessKeyKey, config.AccessKey)
+	config.Cors = envAsBool(corsKey, config.Cors)
+	config.Debug = envAsBool(debugKey, config.Debug)
+	config.Folder = envAsStr(folderKey, config.Folder)
+	config.Host = envAsStr(hostKey, config.Host)
+	config.Port = envAsUint16(portKey, config.Port)
+	config.AllowIndex = envAsBool(allowIndexKey, config.AllowIndex)
+	config.ShowListing = envAsBool(showListingKey, config.ShowListing)
+	config.TLSCert = envAsStr(tlsCertKey, config.TLSCert)
+	config.TLSKey = envAsStr(tlsKeyKey, config.TLSKey)
+	config.TLSMinVersStr = envAsStr(tlsMinVersKey, config.TLSMinVersStr)
+	config.URLPrefix = envAsStr(urlPrefixKey, config.URLPrefix)
+	config.Referrers = envAsStrSlice(referrersKey, config.Referrers)
+	config.AccessKey = envAsStr(accessKeyKey, config.AccessKey)
 }
 
 // validate the configuration.
@@ -210,8 +210,8 @@ func validate(config *Config) (*Config, error) {
 }
 
 // envAsStr returns the value of the environment variable as a string if set.
-func envAsStr(envMapper EnvMapper, key, fallback string) string {
-	if value := envMapper.GetEnv(key); value != "" {
+func envAsStr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
 		return value
 	}
 	return fallback
@@ -219,18 +219,18 @@ func envAsStr(envMapper EnvMapper, key, fallback string) string {
 
 // envAsStrSlice returns the value of the environment variable as a slice of
 // strings if set.
-func envAsStrSlice(envMapper EnvMapper, key string, fallback []string) []string {
-	if value := envMapper.GetEnv(key); value != "" {
+func envAsStrSlice(key string, fallback []string) []string {
+	if value := os.Getenv(key); value != "" {
 		return strings.Split(value, ",")
 	}
 	return fallback
 }
 
 // envAsUint16 returns the value of the environment variable as a uint16 if set.
-func envAsUint16(envMapper EnvMapper, key string, fallback uint16) uint16 {
+func envAsUint16(key string, fallback uint16) uint16 {
 	// Retrieve the string value of the environment variable. If not set,
 	// fallback is used.
-	valueStr := envMapper.GetEnv(key)
+	valueStr := os.Getenv(key)
 	if len(valueStr) == 0 {
 		return fallback
 	}
@@ -253,10 +253,10 @@ func envAsUint16(envMapper EnvMapper, key string, fallback uint16) uint16 {
 
 // envAsBool returns the value for an environment variable or, if not set, a
 // fallback value as a boolean.
-func envAsBool(envMapper EnvMapper, key string, fallback bool) bool {
+func envAsBool(key string, fallback bool) bool {
 	// Retrieve the string value of the environment variable. If not set,
 	// fallback is used.
-	valueStr := envMapper.GetEnv(key)
+	valueStr := os.Getenv(key)
 	if len(valueStr) == 0 {
 		return fallback
 	}

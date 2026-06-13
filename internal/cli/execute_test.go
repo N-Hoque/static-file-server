@@ -145,11 +145,11 @@ func TestWithConfig(t *testing.T) {
 
 	testCases := []struct {
 		name       string
-		loadConfig func(string, config.EnvMapper) (*config.Config, error)
+		loadConfig func(string) (*config.Config, error)
 		result     error
 	}{
-		{"Config error", func(string, config.EnvMapper) (*config.Config, error) { return nil, configError }, configError},
-		{"Routine error", func(string, config.EnvMapper) (*config.Config, error) { return config.New(), nil }, routineError},
+		{"Config error", func(string) (*config.Config, error) { return nil, configError }, configError},
+		{"Routine error", func(string) (*config.Config, error) { return config.New(), nil }, routineError},
 	}
 
 	for _, tc := range testCases {

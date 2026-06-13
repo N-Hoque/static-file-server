@@ -85,8 +85,7 @@ func unknownArgs(args Args) func() error {
 
 func withConfig(routine func(*config.Config) error) func() error {
 	return func() error {
-		realEnvMapper := config.NewRealEnvMapper()
-		config, err := loadConfig(option.configFile, realEnvMapper)
+		config, err := loadConfig(option.configFile)
 		if err != nil {
 			return err
 		}

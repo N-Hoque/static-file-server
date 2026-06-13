@@ -1,7 +1,8 @@
 VERSION  ?= 1.9.0
 
-BINARY   := serve
-IMAGE    := nhoque/static-file-server
+BINARY_NAME := serve
+BINARY_PATH := cmd/$(BINARY_NAME)/main.go
+IMAGE	    := nhoque/static-file-server
 
 LDFLAGS  := -s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.version=$(VERSION)
 
@@ -10,7 +11,7 @@ LDFLAGS  := -s -w -X github.com/N-Hoque/static-file-server/pkg/cli/version.versi
 .PHONY: build test lint coverage cross-build docker-build clean help
 
 build: ## Compile the binary for the current platform
-	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) .
+	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) $(BINARY_PATH)
 
 test: ## Run unit tests
 	go test ./...
@@ -24,19 +25,19 @@ coverage: ## Run tests and produce coverage.out + coverage.html
 
 cross-build: ## Cross-compile for all supported platforms into ./out
 	@mkdir -p out
-	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64         go build -ldflags "$(LDFLAGS)" -o out/$(BINARY)-linux-amd64 .
-	CGO_ENABLED=0 GOOS=linux   GOARCH=arm64          go build -ldflags "$(LDFLAGS)" -o out/$(BINARY)-linux-arm64 .
-	CGO_ENABLED=0 GOOS=linux   GOARCH=arm   GOARM=7  go build -ldflags "$(LDFLAGS)" -o out/$(BINARY)-linux-arm7 .
-	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64          go build -ldflags "$(LDFLAGS)" -o out/$(BINARY)-darwin-amd64 .
-	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64          go build -ldflags "$(LDFLAGS)" -o out/$(BINARY)-darwin-arm64 .
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64          go build -ldflags "$(LDFLAGS)" -o out/$(BINARY)-windows-amd64.exe .
-	CGO_ENABLED=0 GOOS=windows GOARCH=arm64          go build -ldflags "$(LDFLAGS)" -o out/$(BINARY)-windows-arm64.exe .
+	CGO_ENABLED=0 GOOS=linux   GOARCH=amd64         go build -ldflags "$(LDFLAGS)" -o out/$(BINARY_NAME)-linux-amd64 $(BINARY_PATH)
+	CGO_ENABLED=0 GOOS=linux   GOARCH=arm64         go build -ldflags "$(LDFLAGS)" -o out/$(BINARY_NAME)-linux-arm64 $(BINARY_PATH)
+	CGO_ENABLED=0 GOOS=linux   GOARCH=arm   GOARM=7 go build -ldflags "$(LDFLAGS)" -o out/$(BINARY_NAME)-linux-arm7 $(BINARY_PATH)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64         go build -ldflags "$(LDFLAGS)" -o out/$(BINARY_NAME)-darwin-amd64 $(BINARY_PATH)
+	CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64         go build -ldflags "$(LDFLAGS)" -o out/$(BINARY_NAME)-darwin-arm64 $(BINARY_PATH)
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64         go build -ldflags "$(LDFLAGS)" -o out/$(BINARY_NAME)-windows-amd64.exe $(BINARY_PATH)
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64         go build -ldflags "$(LDFLAGS)" -o out/$(BINARY_NAME)-windows-arm64.exe $(BINARY_PATH)
 
 docker-build: ## Build the Docker image for the current platform
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) .
 
 clean: ## Remove build artefacts
-	rm -f $(BINARY)
+	rm -f $(BINARY_NAME)
 	rm -rf out/
 	rm -f coverage.out coverage.html
 

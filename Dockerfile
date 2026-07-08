@@ -3,7 +3,7 @@
 ################################################################################
 ## GO BUILDER
 ################################################################################
-FROM --platform=$BUILDPLATFORM golang:1.26.3 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27rc2 AS builder
 
 ARG VERSION
 ARG TARGETOS=linux
